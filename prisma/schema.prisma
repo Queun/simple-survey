@@ -1,0 +1,93 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// 用户表（管理员和校长）- 简化版
+model User {
+  id        Int      @id @default(autoincrement())
+  username  String   @unique
+  password  String   // 直接存储bcrypt hash
+  role      Role
+  schoolId  Int?     // 校长绑定的学校ID
+  school    School?  @relation(fields: [schoolId], references: [id])
+  createdAt DateTime @default(now())
+}
+
+enum Role {
+  ADMIN
+  PRINCIPAL
+}
+
+// 学校表
+model School {
+  id          Int          @id @default(autoincrement())
+  name        String       @unique
+  code        String       @unique
+  principals  User[]
+  submissions Submission[]
+  createdAt   DateTime     @default(now())
+}
+
+// 调研期表
+model Period {
+  id          Int          @id @default(autoincrement())
+  name        String       // "2024秋季测评"
+  startDate   DateTime
+  endDate     DateTime
+  isActive    Boolean      @default(true)
+  subjects    String       // JSON数组: ["数学","英语","物理"]
+  questions   Question[]
+  submissions Submission[]
+  createdAt   DateTime     @default(now())
+}
+
+// 问卷题目表
+model Question {
+  id        Int      @id @default(autoincrement())
+  periodId  Int
+  period    Period   @relation(fields: [periodId], references: [id], onDelete: Cascade)
+  order     Int
+  content   String
+  options   String   // JSON: [{"label":"非常满意","score":5}, ...]
+  createdAt DateTime @default(now())
+  answers   Answer[]
+}
+
+// 提交记录表
+model Submission {
+  id        Int      @id @default(autoincrement())
+  periodId  Int
+  period    Period   @relation(fields: [periodId], references: [id])
+  schoolId  Int
+  school    School   @relation(fields: [schoolId], references: [id])
+  grade     String   // "高一"
+  className String   // "1班"
+  answers   Answer[]
+  createdAt DateTime @default(now())
+
+  @@index([periodId, schoolId])
+}
+
+// 答案表
+model Answer {
+  id           Int        @id @default(autoincrement())
+  submissionId Int
+  submission   Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  questionId   Int
+  question     Question   @relation(fields: [questionId], references: [id])
+  subject      String     // "数学", "英语"
+  score        Int
+  createdAt    DateTime   @default(now())
+
+  @@index([submissionId])
+  @@index([questionId, subject])
+}
