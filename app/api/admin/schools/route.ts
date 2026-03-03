@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
-import { withAuth } from '@/lib/middleware'
-import { successResponse, errorResponse } from '@/lib/middleware'
+import { withAuth } from '@/lib/auth'
+import { successResponse, errorResponse } from '@/lib/response'
 import { prisma } from '@/lib/prisma'
 
 /**

@@ -84,7 +84,7 @@ export default function PrincipalDashboard() {
   async function fetchPeriods() {
     try {
       const token = localStorage.getItem('token')
-      const res = await fetch('/api/admin/periods', {
+      const res = await fetch('/api/principal/periods', {
         headers: {
           'Authorization': `Bearer ${token}`
         }

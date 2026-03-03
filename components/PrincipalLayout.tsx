@@ -3,7 +3,7 @@
 import { ReactNode, useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
-import { LogOut, LayoutDashboard, BarChart3, TrendingUp } from 'lucide-react'
+import { LogOut, LayoutDashboard, BarChart3, TrendingUp, Download } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 interface User {
@@ -78,6 +78,7 @@ export default function PrincipalLayout({ children }: PrincipalLayoutProps) {
     { name: '仪表盘', href: '/principal', icon: LayoutDashboard },
     { name: '统计数据', href: '/principal/statistics', icon: BarChart3 },
     { name: '校际对比', href: '/principal/comparison', icon: TrendingUp },
+    { name: '数据导出', href: '/principal/export', icon: Download },
   ]
 
   return (

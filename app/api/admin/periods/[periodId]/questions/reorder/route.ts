@@ -1,20 +1,16 @@
 import { NextRequest } from 'next/server'
-import { withAuth } from '@/lib/middleware'
-import { successResponse, errorResponse } from '@/lib/middleware'
+import { withAuth } from '@/lib/auth'
+import { successResponse, errorResponse } from '@/lib/response'
 import { prisma } from '@/lib/prisma'
 
 /**
  * PATCH /api/admin/periods/[periodId]/questions/reorder
  * 批量更新题目顺序
  */
-export async function PATCH(
-  req: NextRequest,
-  { params }: { params: Promise<{ periodId: string }> }
-) {
-  const { periodId } = await params
-
-  return withAuth(async (req: NextRequest, user) => {
+export const PATCH = withAuth(
+  async (req: NextRequest, user, { params }: { params: Promise<{ periodId: string }> }) => {
     try {
+      const { periodId } = await params
       const pid = parseInt(periodId, 10)
 
       if (isNaN(pid)) {
@@ -24,12 +20,10 @@ export async function PATCH(
       const body = await req.json()
       const { questionIds } = body
 
-      // 验证参数
       if (!Array.isArray(questionIds) || questionIds.length === 0) {
         return errorResponse('questionIds必须是非空数组', 400)
       }
 
-      // 验证所有题目都属于该期数
       const questions = await prisma.question.findMany({
         where: {
           id: { in: questionIds },
@@ -41,7 +35,6 @@ export async function PATCH(
         return errorResponse('部分题目不存在或不属于该期数', 400)
       }
 
-      // 批量更新order
       for (let i = 0; i < questionIds.length; i++) {
         await prisma.question.update({
           where: { id: questionIds[i] },
@@ -54,5 +47,6 @@ export async function PATCH(
       console.error('Error reordering questions:', error)
       return errorResponse('排序失败', 500)
     }
-  }, { requiredRole: 'ADMIN' })(req)
-}
+  },
+  { requiredRole: 'ADMIN' }
+)

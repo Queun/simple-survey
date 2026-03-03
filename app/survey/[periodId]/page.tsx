@@ -88,16 +88,7 @@ export default function SurveyPage({ params }: { params: Promise<{ periodId: str
         setSchools(schoolsData)
         setCurrentSubject(periodData.subjects[0])
 
-        // 从 URL 参数预填学校、年级、班级
-        const schoolParam = searchParams.get('school')
-        const gradeParam = searchParams.get('grade')
-        const classParam = searchParams.get('class')
-
-        if (schoolParam) setSelectedSchool(parseInt(schoolParam))
-        if (gradeParam) setSelectedGrade(gradeParam)
-        if (classParam) setSelectedClass(classParam)
-
-        // 从 localStorage 恢复数据
+        // 先从 localStorage 恢复数据
         const saved = localStorage.getItem(storageKey)
         if (saved) {
           try {
@@ -111,6 +102,15 @@ export default function SurveyPage({ params }: { params: Promise<{ periodId: str
             console.error('恢复数据失败:', e)
           }
         }
+
+        // URL 参数优先级最高，覆盖 localStorage 中的学校、年级、班级
+        const schoolParam = searchParams.get('school')
+        const gradeParam = searchParams.get('grade')
+        const classParam = searchParams.get('class')
+
+        if (schoolParam) setSelectedSchool(parseInt(schoolParam))
+        if (gradeParam) setSelectedGrade(gradeParam)
+        if (classParam) setSelectedClass(classParam)
 
         setLoading(false)
       } catch (err) {
