@@ -13,6 +13,8 @@ interface School {
   id: number
   name: string
   code: string
+  grades: string[]
+  classCount: number
 }
 
 interface QuestionOption {
@@ -272,8 +274,10 @@ export default function SurveyPage({ params }: { params: Promise<{ periodId: str
               selectedSchool={selectedSchool}
               selectedGrade={selectedGrade}
               selectedClass={selectedClass}
-              onSchoolChange={setSelectedSchool}
-              onGradeChange={setSelectedGrade}
+              grades={schools.find(s => s.id === selectedSchool)?.grades ?? []}
+              classCount={schools.find(s => s.id === selectedSchool)?.classCount ?? 0}
+              onSchoolChange={(id) => { setSelectedSchool(id); setSelectedGrade(''); setSelectedClass('') }}
+              onGradeChange={(g) => { setSelectedGrade(g); setSelectedClass('') }}
               onClassChange={setSelectedClass}
             />
 

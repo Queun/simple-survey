@@ -11,6 +11,8 @@ interface School {
   id: number
   name: string
   code: string
+  grades: string[]
+  classCount: number
   _count?: {
     principals: number
     submissions: number
@@ -222,7 +224,9 @@ export default function SchoolsPage() {
             schoolId={editingSchool.id}
             initialData={{
               name: editingSchool.name,
-              code: editingSchool.code
+              code: editingSchool.code,
+              grades: editingSchool.grades.join(','),
+              classCount: editingSchool.classCount
             }}
             onClose={() => setEditingSchool(null)}
             onSuccess={() => {

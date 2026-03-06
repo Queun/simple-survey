@@ -20,26 +20,28 @@ interface CascadeSelectorProps {
   selectedSchool: number | null
   selectedGrade: string
   selectedClass: string
+  grades: string[]
+  classCount: number
   onSchoolChange: (schoolId: number) => void
   onGradeChange: (grade: string) => void
   onClassChange: (className: string) => void
 }
-
-const GRADES = ['高一', '高二', '高三']
-const CLASSES = ['1班', '2班', '3班', '4班', '5班', '6班', '7班', '8班', '9班', '10班']
 
 export function CascadeSelector({
   schools,
   selectedSchool,
   selectedGrade,
   selectedClass,
+  grades,
+  classCount,
   onSchoolChange,
   onGradeChange,
   onClassChange,
 }: CascadeSelectorProps) {
+  const classes = Array.from({ length: classCount }, (_, i) => `${i + 1}班`)
+
   return (
     <div className="space-y-4">
-      {/* 学校选择 */}
       <div className="space-y-2">
         <Label htmlFor="school">学校 *</Label>
         <Select
@@ -59,19 +61,18 @@ export function CascadeSelector({
         </Select>
       </div>
 
-      {/* 年级选择 */}
       <div className="space-y-2">
         <Label htmlFor="grade">年级 *</Label>
         <Select
           value={selectedGrade}
           onValueChange={onGradeChange}
-          disabled={!selectedSchool}
+          disabled={!selectedSchool || grades.length === 0}
         >
           <SelectTrigger id="grade">
             <SelectValue placeholder="请选择年级" />
           </SelectTrigger>
           <SelectContent>
-            {GRADES.map((grade) => (
+            {grades.map((grade) => (
               <SelectItem key={grade} value={grade}>
                 {grade}
               </SelectItem>
@@ -80,19 +81,18 @@ export function CascadeSelector({
         </Select>
       </div>
 
-      {/* 班级选择 */}
       <div className="space-y-2">
         <Label htmlFor="class">班级 *</Label>
         <Select
           value={selectedClass}
           onValueChange={onClassChange}
-          disabled={!selectedGrade}
+          disabled={!selectedGrade || classes.length === 0}
         >
           <SelectTrigger id="class">
             <SelectValue placeholder="请选择班级" />
           </SelectTrigger>
           <SelectContent>
-            {CLASSES.map((cls) => (
+            {classes.map((cls) => (
               <SelectItem key={cls} value={cls}>
                 {cls}
               </SelectItem>

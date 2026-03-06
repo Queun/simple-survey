@@ -32,6 +32,8 @@ model School {
   id          Int          @id @default(autoincrement())
   name        String       @unique
   code        String       @unique
+  grades      String       @default("[\"高一\",\"高二\",\"高三\"]") // JSON数组
+  classCount  Int          @default(10)                             // 每年级班级数
   principals  User[]
   submissions Submission[]
   createdAt   DateTime     @default(now())

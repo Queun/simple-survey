@@ -6,7 +6,7 @@ import AdminLayout from '@/components/AdminLayout'
 import QuestionForm from '@/components/QuestionForm'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Plus, Edit, Trash2, GripVertical, ArrowLeft } from 'lucide-react'
+import { Plus, Edit, Trash2, GripVertical, ArrowLeft, Copy } from 'lucide-react'
 
 interface QuestionOption {
   label: string
@@ -36,6 +36,7 @@ export default function QuestionsPage() {
   const [error, setError] = useState('')
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null)
+  const [templateQuestion, setTemplateQuestion] = useState<Question | null>(null)
 
   useEffect(() => {
     fetchPeriod()
@@ -238,6 +239,15 @@ export default function QuestionsPage() {
                       <Button
                         variant="outline"
                         size="sm"
+                        onClick={() => setTemplateQuestion(question)}
+                        className="flex items-center space-x-2 text-green-600 hover:text-green-700"
+                      >
+                        <Copy className="h-4 w-4" />
+                        <span>复制为模板</span>
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
                         onClick={() => setEditingQuestion(question)}
                         className="flex items-center space-x-2"
                       >
@@ -306,6 +316,22 @@ export default function QuestionsPage() {
             onSuccess={() => {
               fetchQuestions()
               setEditingQuestion(null)
+            }}
+          />
+        )}
+
+        {/* 从模板创建题目模态框 */}
+        {templateQuestion && (
+          <QuestionForm
+            periodId={periodId}
+            initialData={{
+              content: templateQuestion.content,
+              options: templateQuestion.options
+            }}
+            onClose={() => setTemplateQuestion(null)}
+            onSuccess={() => {
+              fetchQuestions()
+              setTemplateQuestion(null)
             }}
           />
         )}

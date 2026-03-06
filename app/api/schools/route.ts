@@ -7,7 +7,12 @@ export async function GET() {
       orderBy: { name: 'asc' }
     })
 
-    return NextResponse.json(schools)
+    const schoolsWithParsedGrades = schools.map(school => ({
+      ...school,
+      grades: JSON.parse(school.grades)
+    }))
+
+    return NextResponse.json(schoolsWithParsedGrades)
   } catch (error) {
     console.error('Get schools error:', error)
     return NextResponse.json(

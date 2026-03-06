@@ -39,7 +39,7 @@ export const GET = withAuth(
         return errorResponse('学校不存在', 404)
       }
 
-      return successResponse(school)
+      return successResponse({ ...school, grades: JSON.parse(school.grades) })
     } catch (error) {
       console.error('Error fetching school:', error)
       return errorResponse('获取学校信息失败', 500)
@@ -63,50 +63,35 @@ export const PUT = withAuth(
       }
 
       const body = await req.json()
-      const { name, code } = body
+      const { name, code, grades, classCount } = body
 
       if (!name || !code) {
         return errorResponse('缺少必填字段', 400)
       }
 
-      const existingSchool = await prisma.school.findUnique({
-        where: { id }
-      })
+      const existingSchool = await prisma.school.findUnique({ where: { id } })
+      if (!existingSchool) return errorResponse('学校不存在', 404)
 
-      if (!existingSchool) {
-        return errorResponse('学校不存在', 404)
-      }
+      const schoolWithSameName = await prisma.school.findUnique({ where: { name } })
+      if (schoolWithSameName && schoolWithSameName.id !== id) return errorResponse('学校名称已存在', 400)
 
-      const schoolWithSameName = await prisma.school.findUnique({
-        where: { name }
-      })
-
-      if (schoolWithSameName && schoolWithSameName.id !== id) {
-        return errorResponse('学校名称已存在', 400)
-      }
-
-      const schoolWithSameCode = await prisma.school.findUnique({
-        where: { code }
-      })
-
-      if (schoolWithSameCode && schoolWithSameCode.id !== id) {
-        return errorResponse('学校代码已存在', 400)
-      }
+      const schoolWithSameCode = await prisma.school.findUnique({ where: { code } })
+      if (schoolWithSameCode && schoolWithSameCode.id !== id) return errorResponse('学校代码已存在', 400)
 
       const school = await prisma.school.update({
         where: { id },
-        data: { name, code },
+        data: {
+          name,
+          code,
+          grades: grades ? JSON.stringify(grades) : undefined,
+          classCount: classCount ?? undefined
+        },
         include: {
-          _count: {
-            select: {
-              principals: true,
-              submissions: true
-            }
-          }
+          _count: { select: { principals: true, submissions: true } }
         }
       })
 
-      return successResponse(school)
+      return successResponse({ ...school, grades: JSON.parse(school.grades) })
     } catch (error) {
       console.error('Error updating school:', error)
       return errorResponse('更新学校信息失败', 500)

@@ -11,6 +11,8 @@ interface School {
   id: number
   name: string
   code: string
+  grades: string[]
+  classCount: number
 }
 
 interface LinkGeneratorModalProps {
@@ -28,9 +30,6 @@ export function LinkGeneratorModal({ periodId, userRole, userSchoolId, onClose }
   const [generatedUrl, setGeneratedUrl] = useState('')
   const [copied, setCopied] = useState(false)
   const [loading, setLoading] = useState(true)
-
-  const grades = ['高一', '高二', '高三']
-  const classes = Array.from({ length: 10 }, (_, i) => `${i + 1}班`)
 
   useEffect(() => {
     fetchSchools()
@@ -74,23 +73,37 @@ export function LinkGeneratorModal({ periodId, userRole, userSchoolId, onClose }
       alert('您的浏览器不支持复制功能')
       return
     }
-
     try {
       await navigator.clipboard.writeText(generatedUrl)
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     } catch (err) {
-      console.error('复制失败:', err)
       alert('复制失败，请手动复制')
     }
   }
 
-  // 过滤学校列表（校长只显示自己的学校）
   const filteredSchools = userRole === 'PRINCIPAL' && userSchoolId
     ? schools.filter(s => s.id === userSchoolId)
     : schools
 
   const isPrincipal = userRole === 'PRINCIPAL'
+
+  const currentSchool = schools.find(s => s.id === selectedSchool)
+  const grades = currentSchool?.grades ?? []
+  const classes = currentSchool
+    ? Array.from({ length: currentSchool.classCount }, (_, i) => `${i + 1}班`)
+    : []
+
+  function handleSchoolChange(value: string) {
+    setSelectedSchool(value ? parseInt(value) : null)
+    setSelectedGrade('')
+    setSelectedClass('')
+  }
+
+  function handleGradeChange(value: string) {
+    setSelectedGrade(value)
+    setSelectedClass('')
+  }
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -98,10 +111,7 @@ export function LinkGeneratorModal({ periodId, userRole, userSchoolId, onClose }
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle>生成调查链接</CardTitle>
-            <button
-              onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 transition-colors"
-            >
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
               <X className="h-5 w-5" />
             </button>
           </div>
@@ -111,9 +121,7 @@ export function LinkGeneratorModal({ periodId, userRole, userSchoolId, onClose }
         </CardHeader>
         <CardContent className="space-y-4">
           {loading ? (
-            <div className="text-center py-8 text-gray-500">
-              加载中...
-            </div>
+            <div className="text-center py-8 text-gray-500">加载中...</div>
           ) : (
             <>
               {/* 学校选择 */}
@@ -123,7 +131,7 @@ export function LinkGeneratorModal({ periodId, userRole, userSchoolId, onClose }
                   id="school"
                   className="w-full mt-1 border border-gray-300 rounded-md px-3 py-2"
                   value={selectedSchool || ''}
-                  onChange={(e) => setSelectedSchool(e.target.value ? parseInt(e.target.value) : null)}
+                  onChange={(e) => handleSchoolChange(e.target.value)}
                   disabled={isPrincipal}
                 >
                   <option value="">-- 不预填学校 --</option>
@@ -134,9 +142,7 @@ export function LinkGeneratorModal({ periodId, userRole, userSchoolId, onClose }
                   ))}
                 </select>
                 {isPrincipal && (
-                  <p className="text-xs text-gray-500 mt-1">
-                    校长只能为自己的学校生成链接
-                  </p>
+                  <p className="text-xs text-gray-500 mt-1">校长只能为自己的学校生成链接</p>
                 )}
               </div>
 
@@ -147,13 +153,12 @@ export function LinkGeneratorModal({ periodId, userRole, userSchoolId, onClose }
                   id="grade"
                   className="w-full mt-1 border border-gray-300 rounded-md px-3 py-2"
                   value={selectedGrade}
-                  onChange={(e) => setSelectedGrade(e.target.value)}
+                  onChange={(e) => handleGradeChange(e.target.value)}
+                  disabled={!selectedSchool || grades.length === 0}
                 >
                   <option value="">-- 不预填年级 --</option>
                   {grades.map(grade => (
-                    <option key={grade} value={grade}>
-                      {grade}
-                    </option>
+                    <option key={grade} value={grade}>{grade}</option>
                   ))}
                 </select>
               </div>
@@ -166,12 +171,11 @@ export function LinkGeneratorModal({ periodId, userRole, userSchoolId, onClose }
                   className="w-full mt-1 border border-gray-300 rounded-md px-3 py-2"
                   value={selectedClass}
                   onChange={(e) => setSelectedClass(e.target.value)}
+                  disabled={!selectedGrade || classes.length === 0}
                 >
                   <option value="">-- 不预填班级 --</option>
                   {classes.map(cls => (
-                    <option key={cls} value={cls}>
-                      {cls}
-                    </option>
+                    <option key={cls} value={cls}>{cls}</option>
                   ))}
                 </select>
               </div>
@@ -180,26 +184,12 @@ export function LinkGeneratorModal({ periodId, userRole, userSchoolId, onClose }
               <div className="pt-4 border-t">
                 <Label htmlFor="url">生成的链接</Label>
                 <div className="flex gap-2 mt-1">
-                  <Input
-                    id="url"
-                    value={generatedUrl}
-                    readOnly
-                    className="flex-1 bg-gray-50"
-                  />
-                  <Button
-                    onClick={handleCopy}
-                    className="flex items-center space-x-2 min-w-[100px]"
-                  >
+                  <Input id="url" value={generatedUrl} readOnly className="flex-1 bg-gray-50" />
+                  <Button onClick={handleCopy} className="flex items-center space-x-2 min-w-[100px]">
                     {copied ? (
-                      <>
-                        <Check className="h-4 w-4" />
-                        <span>已复制</span>
-                      </>
+                      <><Check className="h-4 w-4" /><span>已复制</span></>
                     ) : (
-                      <>
-                        <Copy className="h-4 w-4" />
-                        <span>复制</span>
-                      </>
+                      <><Copy className="h-4 w-4" /><span>复制</span></>
                     )}
                   </Button>
                 </div>
@@ -219,11 +209,8 @@ export function LinkGeneratorModal({ periodId, userRole, userSchoolId, onClose }
                 </ul>
               </div>
 
-              {/* 关闭按钮 */}
               <div className="flex justify-end pt-2">
-                <Button variant="outline" onClick={onClose}>
-                  关闭
-                </Button>
+                <Button variant="outline" onClick={onClose}>关闭</Button>
               </div>
             </>
           )}
