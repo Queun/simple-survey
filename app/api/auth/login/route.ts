@@ -27,6 +27,7 @@ export async function POST(req: NextRequest) {
 
     const token = generateToken({
       id: user.id,
+      username: user.username,
       role: user.role,
       schoolId: user.schoolId
     })

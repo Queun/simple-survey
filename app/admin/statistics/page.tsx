@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import AdminLayout from '@/components/AdminLayout'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { TrendingUp, School, FileText, Award } from 'lucide-react'
 
 interface SubjectStat {
@@ -39,6 +39,7 @@ export default function AdminStatisticsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [selectedPeriod, setSelectedPeriod] = useState<number | null>(null)
+  const [initialPeriodSet, setInitialPeriodSet] = useState(false)
 
   useEffect(() => {
     fetchStatistics()
@@ -63,6 +64,12 @@ export default function AdminStatisticsPage() {
 
       const result = await res.json()
       setData(result)
+
+      // 首次加载时默认选最新一期
+      if (!initialPeriodSet && result.periods && result.periods.length > 0) {
+        setInitialPeriodSet(true)
+        setSelectedPeriod(result.periods[0].id)
+      }
     } catch (err) {
       console.error('Error fetching statistics:', err)
       setError('加载统计数据失败')
@@ -71,35 +78,10 @@ export default function AdminStatisticsPage() {
     }
   }
 
-  // 准备柱状图数据（各学校各科目平均分对比）
-  const prepareBarChartData = () => {
+  // 准备分组柱状图数据（以科目为X轴，各学校为柱）
+  const prepareGroupedBarChartData = () => {
     if (!data || data.schools.length === 0) return []
 
-    // 获取所有科目ID
-    const allSubjects = new Set<string>()
-    data.schools.forEach(school => {
-      school.subjects.forEach(subject => allSubjects.add(subject.subjectId))
-    })
-
-    // 为每个学校准备数据
-    return data.schools.map(school => {
-      const item: any = {
-        name: school.schoolName
-      }
-
-      school.subjects.forEach(subject => {
-        item[subject.subjectName] = subject.averageScore
-      })
-
-      return item
-    })
-  }
-
-  // 准备雷达图数据（学校综合对比）
-  const prepareRadarChartData = () => {
-    if (!data || data.schools.length === 0) return []
-
-    // 获取所有科目
     const subjectMap = new Map<string, string>()
     data.schools.forEach(school => {
       school.subjects.forEach(subject => {
@@ -107,19 +89,12 @@ export default function AdminStatisticsPage() {
       })
     })
 
-    const subjects = Array.from(subjectMap.entries())
-
-    // 为每个科目准备数据
-    return subjects.map(([subjectId, subjectName]) => {
-      const item: any = {
-        subject: subjectName
-      }
-
+    return Array.from(subjectMap.entries()).map(([subjectId, subjectName]) => {
+      const item: any = { subject: subjectName }
       data.schools.forEach(school => {
         const subject = school.subjects.find(s => s.subjectId === subjectId)
         item[school.schoolName] = subject?.averageScore || 0
       })
-
       return item
     })
   }
@@ -172,11 +147,13 @@ export default function AdminStatisticsPage() {
     }
   }
 
-  const barChartData = prepareBarChartData()
-  const radarChartData = prepareRadarChartData()
+  const groupedBarChartData = prepareGroupedBarChartData()
   const overallStats = calculateOverallStats()
 
-  // 获取所有科目名称（用于柱状图图例）
+  // 获取所有学校名称（用于分组柱状图图例）
+  const schoolNames = data?.schools.map(s => s.schoolName) ?? []
+
+  // 获取所有科目名称（用于详细表格）
   const getAllSubjectNames = () => {
     if (!data || data.schools.length === 0) return []
     const names = new Set<string>()
@@ -282,56 +259,26 @@ export default function AdminStatisticsPage() {
               </Card>
             </div>
 
-            {/* 柱状图 - 各学校各科目平均分 */}
+            {/* 分组柱状图 - 各科目跨校平均分对比 */}
             <Card>
               <CardHeader>
-                <CardTitle>各学校科目平均分对比</CardTitle>
+                <CardTitle>各科目跨校平均分对比</CardTitle>
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={400}>
-                  <BarChart data={barChartData}>
+                  <BarChart data={groupedBarChartData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
+                    <XAxis dataKey="subject" />
                     <YAxis domain={[0, 5]} />
                     <Tooltip />
                     <Legend />
-                    {subjectNames.map((name, index) => (
+                    {schoolNames.map((name, index) => (
                       <Bar key={name} dataKey={name} fill={colors[index % colors.length]} />
                     ))}
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>
             </Card>
-
-            {/* 雷达图 - 学校综合对比 */}
-            {data.schools.length <= 5 && radarChartData.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>学校综合对比（雷达图）</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ResponsiveContainer width="100%" height={400}>
-                    <RadarChart data={radarChartData}>
-                      <PolarGrid />
-                      <PolarAngleAxis dataKey="subject" />
-                      <PolarRadiusAxis domain={[0, 5]} />
-                      <Tooltip />
-                      <Legend />
-                      {data.schools.map((school, index) => (
-                        <Radar
-                          key={school.schoolId}
-                          name={school.schoolName}
-                          dataKey={school.schoolName}
-                          stroke={colors[index % colors.length]}
-                          fill={colors[index % colors.length]}
-                          fillOpacity={0.3}
-                        />
-                      ))}
-                    </RadarChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
-            )}
 
             {/* 详细数据表格 */}
             <Card>

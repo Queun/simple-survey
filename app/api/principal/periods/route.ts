@@ -14,6 +14,7 @@ export const GET = withAuth(
       if (!user.schoolId) {
         return errorResponse('您的账号未绑定学校', 403)
       }
+      const schoolId = user.schoolId
 
       const periods = await prisma.period.findMany({
         include: {
@@ -34,7 +35,7 @@ export const GET = withAuth(
           const schoolSubmissionCount = await prisma.submission.count({
             where: {
               periodId: period.id,
-              schoolId: user.schoolId
+              schoolId
             }
           })
 

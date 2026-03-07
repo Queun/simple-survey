@@ -62,6 +62,7 @@ export default function PrincipalStatisticsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [selectedPeriod, setSelectedPeriod] = useState<number | null>(null)
+  const [initialPeriodSet, setInitialPeriodSet] = useState(false)
 
   useEffect(() => {
     fetchStatistics()
@@ -86,6 +87,12 @@ export default function PrincipalStatisticsPage() {
 
       const result = await res.json()
       setData(result)
+
+      // 首次加载时默认选最新一期
+      if (!initialPeriodSet && result.periods && result.periods.length > 0) {
+        setInitialPeriodSet(true)
+        setSelectedPeriod(result.periods[0].id)
+      }
     } catch (err) {
       console.error('Error fetching statistics:', err)
       setError('加载统计数据失败')

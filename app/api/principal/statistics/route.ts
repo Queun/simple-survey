@@ -15,6 +15,7 @@ export const GET = withAuth(
       if (!user.schoolId) {
         return errorResponse('您的账号未绑定学校', 403)
       }
+      const schoolId = user.schoolId
 
       const { searchParams } = new URL(req.url)
       const periodId = searchParams.get('periodId')
@@ -27,7 +28,7 @@ export const GET = withAuth(
 
       // 获取本校信息
       const mySchool = await prisma.school.findUnique({
-        where: { id: user.schoolId },
+        where: { id: schoolId },
         select: {
           id: true,
           name: true,
@@ -43,7 +44,7 @@ export const GET = withAuth(
       const mySubmissions = await prisma.submission.findMany({
         where: {
           ...whereCondition,
-          schoolId: user.schoolId
+          schoolId
         },
         include: {
           answers: {

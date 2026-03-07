@@ -1,11 +1,12 @@
 'use client'
 
+import { Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { CheckCircle2, RotateCcw } from 'lucide-react'
 
-export default function SuccessPage() {
+function SuccessContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
 
@@ -20,13 +21,11 @@ export default function SuccessPage() {
       return
     }
 
-    // 清空答案，保留基础信息
     const storageKey = `survey_${periodId}`
     const saved = localStorage.getItem(storageKey)
     if (saved) {
       try {
         const data = JSON.parse(saved)
-        // 保留学校、年级、班级，清空答案和已完成标记
         const cleanData = {
           schoolId: data.schoolId,
           grade: data.grade,
@@ -37,12 +36,10 @@ export default function SuccessPage() {
         localStorage.setItem(storageKey, JSON.stringify(cleanData))
       } catch (e) {
         console.error('清理数据失败:', e)
-        // 如果清理失败，直接移除
         localStorage.removeItem(storageKey)
       }
     }
 
-    // 构建返回URL
     const params = new URLSearchParams()
     if (school) params.append('school', school)
     if (grade) params.append('grade', grade)
@@ -67,7 +64,6 @@ export default function SuccessPage() {
           <CardTitle className="text-2xl font-bold">提交成功！</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* 显示提交的班级信息 */}
           {grade && className && (
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <p className="text-sm text-blue-800">
@@ -80,14 +76,12 @@ export default function SuccessPage() {
             感谢您的参与，您的反馈对我们非常重要。
           </p>
 
-          {/* 老师验收提示 */}
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
             <p className="text-sm text-yellow-800">
               请让老师确认您已完成问卷填写
             </p>
           </div>
 
-          {/* 返回重新填写按钮 */}
           {periodId && (
             <div className="pt-4">
               <Button
@@ -113,5 +107,17 @@ export default function SuccessPage() {
         </CardContent>
       </Card>
     </div>
+  )
+}
+
+export default function SuccessPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="text-gray-600">加载中...</div>
+      </div>
+    }>
+      <SuccessContent />
+    </Suspense>
   )
 }

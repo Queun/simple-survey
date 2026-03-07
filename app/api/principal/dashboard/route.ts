@@ -14,10 +14,11 @@ export const GET = withAuth(
       if (user.role !== 'PRINCIPAL' || !user.schoolId) {
         return errorResponse('无权限访问', 403)
       }
+      const schoolId = user.schoolId
 
       // 获取学校信息
       const school = await prisma.school.findUnique({
-        where: { id: user.schoolId }
+        where: { id: schoolId }
       })
 
       if (!school) {
@@ -26,7 +27,7 @@ export const GET = withAuth(
 
       // 获取本校提交总数
       const totalSubmissions = await prisma.submission.count({
-        where: { schoolId: user.schoolId }
+        where: { schoolId }
       })
 
       // 获取活跃的调研期数量
@@ -39,7 +40,7 @@ export const GET = withAuth(
       sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
       const recentSubmissions = await prisma.submission.count({
         where: {
-          schoolId: user.schoolId,
+          schoolId,
           createdAt: {
             gte: sevenDaysAgo
           }
@@ -50,7 +51,7 @@ export const GET = withAuth(
       const answers = await prisma.answer.findMany({
         where: {
           submission: {
-            schoolId: user.schoolId
+            schoolId
           }
         },
         select: {
