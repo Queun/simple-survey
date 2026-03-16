@@ -103,11 +103,6 @@ export default function LoginPage() {
               {loading ? '登录中...' : '登录'}
             </Button>
 
-            <div className="text-sm text-gray-500 text-center pt-2">
-              <p>测试账号：</p>
-              <p>管理员: admin / admin123</p>
-              <p>校长: principal1 / principal123</p>
-            </div>
           </form>
         </CardContent>
       </Card>
