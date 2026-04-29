@@ -129,7 +129,8 @@ export const PATCH = withAuth(
 
 /**
  * DELETE /api/admin/periods/[periodId]
- * 删除调研期
+ * 一键删除调研期：删除所有提交数据（级联删除答案）、删除调研期（级联删除题目）
+ * 使用事务保证原子性
  */
 export const DELETE = withAuth(
   async (req: NextRequest, user, { params }: { params: Promise<{ periodId: string }> }) => {
@@ -141,19 +142,24 @@ export const DELETE = withAuth(
         return errorResponse('无效的期数ID', 400)
       }
 
-      const submissionCount = await prisma.submission.count({
-        where: { periodId: id }
-      })
-
-      if (submissionCount > 0) {
-        return errorResponse('该调研期已有提交数据，无法删除', 400)
-      }
-
-      await prisma.period.delete({
+      const period = await prisma.period.findUnique({
         where: { id }
       })
 
-      return successResponse({ message: '删除成功' })
+      if (!period) {
+        return errorResponse('调研期不存在', 404)
+      }
+
+      await prisma.$transaction([
+        prisma.submission.deleteMany({
+          where: { periodId: id }
+        }),
+        prisma.period.delete({
+          where: { id }
+        })
+      ])
+
+      return successResponse({ message: '调研期已删除，相关题目和提交数据已清除' })
     } catch (error) {
       console.error('Error deleting period:', error)
       return errorResponse('删除调研期失败', 500)

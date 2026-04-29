@@ -41,3 +41,9 @@ yarn-error.log*
 # next-env.d.ts
 
 # /lib/generated/prisma
+
+# prisma database (production data, do not commit)
+*.db
+*.db-journal
+*.db-wal
+*.db-shm

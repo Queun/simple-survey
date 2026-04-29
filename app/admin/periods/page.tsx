@@ -6,7 +6,7 @@ import PeriodForm from '@/components/PeriodForm'
 import { LinkGeneratorModal } from '@/components/LinkGeneratorModal'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Plus, Edit, Power, Calendar, Users, Link as LinkIcon } from 'lucide-react'
+import { Plus, Edit, Power, Calendar, Users, Link as LinkIcon, Trash2 } from 'lucide-react'
 
 interface Period {
   id: number
@@ -94,6 +94,34 @@ export default function PeriodsPage() {
     } catch (err) {
       console.error('Error toggling period:', err)
       alert('切换状态失败')
+    }
+  }
+
+  async function handleDeletePeriod(periodId: number) {
+    if (!confirm('确定要删除这个调研期吗？\n\n这将同时：\n• 删除该期数的所有题目\n• 删除该期数的所有提交数据\n\n此操作不可撤销！')) {
+      return
+    }
+
+    try {
+      const token = localStorage.getItem('token')
+      const res = await fetch(`/api/admin/periods/${periodId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to delete period')
+      }
+
+      alert('删除成功')
+      fetchPeriods()
+    } catch (err: any) {
+      console.error('Error deleting period:', err)
+      alert(err.message || '删除失败')
     }
   }
 
@@ -190,6 +218,15 @@ export default function PeriodsPage() {
                       >
                         <Edit className="h-4 w-4" />
                         <span>编辑</span>
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDeletePeriod(period.id)}
+                        className="flex items-center space-x-2 text-red-600 hover:text-red-700"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        <span>删除</span>
                       </Button>
                     </div>
                   </div>

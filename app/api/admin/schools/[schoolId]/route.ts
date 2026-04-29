@@ -102,7 +102,8 @@ export const PUT = withAuth(
 
 /**
  * DELETE /api/admin/schools/[schoolId]
- * 删除学校
+ * 一键删除学校：解绑校长、删除所有提交数据（级联删除答案）、删除学校
+ * 使用事务保证原子性
  */
 export const DELETE = withAuth(
   async (req: NextRequest, user, { params }: { params: Promise<{ schoolId: string }> }) => {
@@ -122,27 +123,20 @@ export const DELETE = withAuth(
         return errorResponse('学校不存在', 404)
       }
 
-      const submissionCount = await prisma.submission.count({
-        where: { schoolId: id }
-      })
+      await prisma.$transaction([
+        prisma.user.updateMany({
+          where: { schoolId: id },
+          data: { schoolId: null }
+        }),
+        prisma.submission.deleteMany({
+          where: { schoolId: id }
+        }),
+        prisma.school.delete({
+          where: { id }
+        })
+      ])
 
-      if (submissionCount > 0) {
-        return errorResponse('该学校已有提交数据，无法删除', 400)
-      }
-
-      const principalCount = await prisma.user.count({
-        where: { schoolId: id, role: 'PRINCIPAL' }
-      })
-
-      if (principalCount > 0) {
-        return errorResponse('该学校已有绑定的校长账号，无法删除', 400)
-      }
-
-      await prisma.school.delete({
-        where: { id }
-      })
-
-      return successResponse({ message: '删除成功' })
+      return successResponse({ message: '学校已删除，相关校长已解绑，提交数据已清除' })
     } catch (error) {
       console.error('Error deleting school:', error)
       return errorResponse('删除学校失败', 500)

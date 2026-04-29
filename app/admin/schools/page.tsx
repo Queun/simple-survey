@@ -54,7 +54,7 @@ export default function SchoolsPage() {
   }
 
   async function handleDeleteSchool(schoolId: number) {
-    if (!confirm('确定要删除这个学校吗？如果学校已有提交数据或绑定的校长账号，将无法删除。')) {
+    if (!confirm('确定要删除这个学校吗？\n\n这将同时：\n• 解绑该学校的所有校长账号\n• 删除该学校的所有提交数据\n\n此操作不可撤销！')) {
       return
     }
 
