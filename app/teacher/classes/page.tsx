@@ -15,8 +15,12 @@ export default async function Page() {
       jar.delete(cookieName)
       redirect('/teacher')
     }
-    return <form action={signOut} className="p-6">
-      登录状态已失效。<button className="underline">重新登录</button></form>
+    return <main className="flex min-h-screen items-center justify-center bg-slate-50 p-4">
+      <form action={signOut} className="w-full max-w-sm rounded-xl border bg-white p-6 text-center">
+        <p className="text-slate-700">登录状态已失效，请重新登录。</p>
+        <button className="mt-4 min-h-11 w-full rounded-lg bg-slate-900 px-4 text-white">重新登录</button>
+      </form>
+    </main>
   }
   return <TeacherClasses initial={data} />
 }

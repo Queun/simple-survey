@@ -51,7 +51,7 @@ export default function LoginPage() {
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl font-bold text-center">
-            学校调研系统
+            学校匿名评教系统
           </CardTitle>
           <CardDescription className="text-center">
             管理员/校长登录

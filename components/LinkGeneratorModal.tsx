@@ -17,11 +17,13 @@ interface School {
 interface LinkGeneratorModalProps {
   periodId: number
   onClose: () => void
+  /** 校长端传入本校 ID：固定为本校，不显示学校选择 */
+  schoolId?: number
 }
 
-export function LinkGeneratorModal({ periodId, onClose }: LinkGeneratorModalProps) {
+export function LinkGeneratorModal({ periodId, onClose, schoolId }: LinkGeneratorModalProps) {
   const [schools, setSchools] = useState<School[]>([])
-  const [selectedSchool, setSelectedSchool] = useState<number | null>(null)
+  const [selectedSchool, setSelectedSchool] = useState<number | null>(schoolId ?? null)
   const [selectedGrade, setSelectedGrade] = useState('')
   const [selectedClass, setSelectedClass] = useState('')
   const [origin, setOrigin] = useState('')
@@ -42,7 +44,7 @@ export function LinkGeneratorModal({ periodId, onClose }: LinkGeneratorModalProp
       const res = await fetch('/api/schools')
       if (!res.ok) throw new Error('Failed to fetch schools')
       const data = await res.json()
-      setSchools(data)
+      setSchools(schoolId ? data.filter((school: School) => school.id === schoolId) : data)
       setOrigin(window.location.origin)
     } catch (err) {
       console.error('Error fetching schools:', err)
@@ -100,7 +102,7 @@ export function LinkGeneratorModal({ periodId, onClose }: LinkGeneratorModalProp
           ) : (
             <>
               {/* 学校选择 */}
-              <div>
+              <div hidden={!!schoolId}>
                 <Label htmlFor="school">学校 (可选)</Label>
                 <select
                   id="school"

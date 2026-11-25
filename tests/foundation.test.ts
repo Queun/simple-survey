@@ -84,6 +84,8 @@ describe('后台会话和学校范围', () => {
     expect(proxy(request('/admin/schools')).headers.get('location')).toBe('http://localhost/login')
     expect(proxy(request('/admin/schools', principal)).headers.get('location')).toBe('http://localhost/principal')
     expect(proxy(request('/admin/schools', admin)).headers.get('x-middleware-next')).toBe('1')
+    // 共用电脑上已有会话时，登录页仍要能打开，换角色登录
+    expect(proxy(request('/login', principal)).headers.get('x-middleware-next')).toBe('1')
     const res = await logout(request('/api/auth/logout', admin, 'POST'))
     expect(res.headers.get('set-cookie')).toMatch(/survey_session=;/)
     // 浏览器可能带一个空的请求体，不能当成非法 JSON
@@ -238,5 +240,14 @@ describe('新模型的约束和历史答卷', () => {
     expect(await prisma.submission.count({ where: { periodId: period.id } })).toBe(0)
     expect(await prisma.answer.count({ where: { submissionId: submission.id } })).toBe(0)
     expect(await prisma.teachingAssignment.count({ where: assignment })).toBe(1)
+  })
+})
+
+describe('调研期日期按北京时间', () => {
+  it('开始日从 0 点起，结束日包含整天', async () => {
+    const { periodForm } = await import('@/lib/forms')
+    const p = periodForm.parse({ name: '期', startDate: '2026-11-25', endDate: '2026-12-31', subjectIds: [1] })
+    expect(p.startDate.toISOString()).toBe('2026-11-24T16:00:00.000Z')
+    expect(p.endDate.toISOString()).toBe('2026-12-31T15:59:59.999Z')
   })
 })

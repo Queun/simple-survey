@@ -7,9 +7,12 @@ export const schoolForm = z.strictObject({
   grades: z.array(name).min(1).max(30).refine(unique), classCount: id.max(50),
 })
 export const subjectForm = z.strictObject({ name, order: z.int32().nonnegative() })
+// 学校按北京时间理解日期：开始日从当天 0 点起，结束日包含当天整天
+const schoolDay = (edge: 'start' | 'end') => z.iso.date()
+  .transform(day => new Date(`${day}T${edge === 'start' ? '00:00:00.000' : '23:59:59.999'}+08:00`))
+  .or(z.iso.datetime({ offset: true }).pipe(z.coerce.date()))
 export const periodForm = z.strictObject({
-  name, startDate: z.iso.date().or(z.iso.datetime({ offset: true })).pipe(z.coerce.date()),
-  endDate: z.iso.date().or(z.iso.datetime({ offset: true })).pipe(z.coerce.date()),
+  name, startDate: schoolDay('start'), endDate: schoolDay('end'),
   subjectIds: z.array(id).min(1).refine(unique), isActive: z.boolean().default(true),
 }).refine(p => p.startDate <= p.endDate)
 export const questionForm = z.strictObject({

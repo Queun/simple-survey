@@ -101,8 +101,14 @@ export default function PeriodsPage() {
     }
   }
 
+  // 日期输入框要的是北京时间的 YYYY-MM-DD
+  function schoolDate(dateString: string) {
+    return new Date(dateString).toLocaleDateString('sv-SE', { timeZone: 'Asia/Shanghai' })
+  }
+
   function formatDate(dateString: string) {
     return new Date(dateString).toLocaleDateString('zh-CN', {
+      timeZone: 'Asia/Shanghai',
       year: 'numeric',
       month: '2-digit',
       day: '2-digit'
@@ -261,8 +267,8 @@ export default function PeriodsPage() {
           <PeriodForm
             periodId={editing?.id}
             initialData={editing ? {
-              name: editing.name, isActive: editing.isActive, startDate: editing.startDate.slice(0, 10),
-              endDate: editing.endDate.slice(0, 10), subjectIds: editing.subjects.map(s => s.id),
+              name: editing.name, isActive: editing.isActive, startDate: schoolDate(editing.startDate),
+              endDate: schoolDate(editing.endDate), subjectIds: editing.subjects.map(s => s.id),
             } : undefined}
             onClose={() => { setEditing(null); setShowCreateModal(false) }}
             onSuccess={() => {
