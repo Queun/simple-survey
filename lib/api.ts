@@ -20,8 +20,13 @@ export async function body<S extends z.ZodType>(req: NextRequest, schema: S) {
   return schema.parse(value) as z.output<S>
 }
 
+// 浏览器发 POST/DELETE 时即使没有内容也可能带一个空的请求体流，空白内容视为没有请求体
 export async function emptyBody(req: NextRequest) {
-  if (req.body) await body(req, empty)
+  const text = await req.text()
+  if (!text.trim()) return
+  let value: unknown
+  try { value = JSON.parse(text) } catch { throw new RequestError('请求体必须是有效的 JSON') }
+  empty.parse(value)
 }
 
 export function noQuery(req: NextRequest) { query(req, empty) }

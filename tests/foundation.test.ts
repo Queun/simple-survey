@@ -86,6 +86,11 @@ describe('后台会话和学校范围', () => {
     expect(proxy(request('/admin/schools', admin)).headers.get('x-middleware-next')).toBe('1')
     const res = await logout(request('/api/auth/logout', admin, 'POST'))
     expect(res.headers.get('set-cookie')).toMatch(/survey_session=;/)
+    // 浏览器可能带一个空的请求体，不能当成非法 JSON
+    const emptyBodyReq = new NextRequest('http://localhost/api/auth/logout', { method: 'POST', headers: { cookie: admin }, body: '' })
+    expect((await logout(emptyBodyReq)).status).toBe(200)
+    const junk = new NextRequest('http://localhost/api/auth/logout', { method: 'POST', headers: { cookie: admin }, body: '{"x":1}' })
+    expect((await logout(junk)).status).toBe(400)
   })
 
   it('非法请求体、路径及查询参数返回中文 400', async () => {
