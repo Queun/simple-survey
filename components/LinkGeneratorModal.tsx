@@ -11,7 +11,7 @@ interface School {
   id: number
   name: string
   code: string
-  classes: { grade: string, name: string }[]
+  classes: { id: number, grade: string, name: string }[]
 }
 
 interface LinkGeneratorModalProps {
@@ -67,7 +67,7 @@ export function LinkGeneratorModal({ periodId, onClose }: LinkGeneratorModalProp
 
   const currentSchool = schools.find(s => s.id === selectedSchool)
   const grades = [...new Set(currentSchool?.classes.map(c => c.grade))]
-  const classes = currentSchool?.classes.filter(c => c.grade === selectedGrade).map(c => c.name) ?? []
+  const classes = currentSchool?.classes.filter(c => c.grade === selectedGrade) ?? []
 
   function handleSchoolChange(value: string) {
     setSelectedSchool(value ? parseInt(value) : null)
@@ -146,7 +146,7 @@ export function LinkGeneratorModal({ periodId, onClose }: LinkGeneratorModalProp
                 >
                   <option value="">-- 不预填班级 --</option>
                   {classes.map(cls => (
-                    <option key={cls} value={cls}>{cls}</option>
+                    <option key={cls.id} value={cls.id}>{cls.name}</option>
                   ))}
                 </select>
               </div>

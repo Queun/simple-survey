@@ -88,7 +88,7 @@ describe('后台会话和学校范围', () => {
     expect(res.headers.get('set-cookie')).toMatch(/survey_session=;/)
   })
 
-  it('非法请求体、路径及查询参数返回中文 400，维护接口返回 503', async () => {
+  it('非法请求体、路径及查询参数返回中文 400', async () => {
     const responses = [
       await login(request('/', '', 'POST', { username: true })),
       await createSchool(request('/', admin, 'POST', {}), ctx()),
@@ -96,13 +96,13 @@ describe('后台会话和学校范围', () => {
       await accounts(request('/?role=ADMIN&role=ADMIN', admin), ctx()),
       await periods(request('/?unknown=1', admin), ctx()),
       await classes(request('/', admin), ctx({ schoolId: '1a' })),
+      await submit(request('/', '', 'POST', {})),
       await submit(new NextRequest('http://localhost', { method: 'POST', body: '{' })),
     ]
     for (const res of responses) {
       expect(res.status).toBe(400)
       expect((await res.json()).error).toMatch(/[\u4e00-\u9fff]/)
     }
-    expect((await submit(request('/', '', 'POST', {}))).status).toBe(503)
   })
 
   it('学科、调研期、题目配置可保存并读回，修改失败时保留旧选科', async () => {

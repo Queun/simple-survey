@@ -1,104 +1,44 @@
-'use client'
-
 import { Label } from '@/components/ui/label'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 
-interface School {
-  id: number
-  name: string
-  code: string
+interface Choice { id: number, name: string }
+export interface SurveySchool extends Choice { grades: { name: string, classes: Choice[] }[] }
+
+interface Props {
+  schools: SurveySchool[]
+  schoolId: string
+  grade: string
+  classId: string
+  onSchoolChange: (id: string) => void
+  onGradeChange: (name: string) => void
+  onClassChange: (id: string) => void
 }
 
-interface CascadeSelectorProps {
-  schools: School[]
-  selectedSchool: number | null
-  selectedGrade: string
-  selectedClass: string
-  grades: string[]
-  classCount: number
-  onSchoolChange: (schoolId: number) => void
-  onGradeChange: (grade: string) => void
-  onClassChange: (className: string) => void
-}
-
-export function CascadeSelector({
-  schools,
-  selectedSchool,
-  selectedGrade,
-  selectedClass,
-  grades,
-  classCount,
-  onSchoolChange,
-  onGradeChange,
-  onClassChange,
-}: CascadeSelectorProps) {
-  const classes = Array.from({ length: classCount }, (_, i) => `${i + 1}班`)
-
+export function CascadeSelector({ schools, schoolId, grade, classId, onSchoolChange, onGradeChange, onClassChange }: Props) {
+  const grades = schools.find(s => String(s.id) === schoolId)?.grades ?? []
+  const classes = grades.find(g => g.name === grade)?.classes ?? []
+  const style = 'mt-2 min-h-12 w-full rounded-lg border bg-white px-3 text-lg disabled:bg-slate-50'
   return (
-    <div className="space-y-4">
-      <div className="space-y-2">
-        <Label htmlFor="school">学校 *</Label>
-        <Select
-          value={selectedSchool?.toString() || ''}
-          onValueChange={(value) => onSchoolChange(parseInt(value))}
-        >
-          <SelectTrigger id="school">
-            <SelectValue placeholder="请选择学校" />
-          </SelectTrigger>
-          <SelectContent>
-            {schools.map((school) => (
-              <SelectItem key={school.id} value={school.id.toString()}>
-                {school.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+    <div className="grid gap-5 sm:grid-cols-2">
+      <div className="sm:col-span-2">
+        <Label htmlFor="school">学校</Label>
+        <select id="school" className={style} value={schoolId} onChange={e => onSchoolChange(e.target.value)}>
+          <option value="">请选择学校</option>
+          {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+        </select>
       </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="grade">年级 *</Label>
-        <Select
-          value={selectedGrade}
-          onValueChange={onGradeChange}
-          disabled={!selectedSchool || grades.length === 0}
-        >
-          <SelectTrigger id="grade">
-            <SelectValue placeholder="请选择年级" />
-          </SelectTrigger>
-          <SelectContent>
-            {grades.map((grade) => (
-              <SelectItem key={grade} value={grade}>
-                {grade}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      <div>
+        <Label htmlFor="grade">年级</Label>
+        <select id="grade" className={style} disabled={!grades.length} value={grade} onChange={e => onGradeChange(e.target.value)}>
+          <option value="">请选择年级</option>
+          {grades.map(g => <option key={g.name}>{g.name}</option>)}
+        </select>
       </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="class">班级 *</Label>
-        <Select
-          value={selectedClass}
-          onValueChange={onClassChange}
-          disabled={!selectedGrade || classes.length === 0}
-        >
-          <SelectTrigger id="class">
-            <SelectValue placeholder="请选择班级" />
-          </SelectTrigger>
-          <SelectContent>
-            {classes.map((cls) => (
-              <SelectItem key={cls} value={cls}>
-                {cls}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      <div>
+        <Label htmlFor="class">班级</Label>
+        <select id="class" className={style} disabled={!classes.length} value={classId} onChange={e => onClassChange(e.target.value)}>
+          <option value="">请选择班级</option>
+          {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </select>
       </div>
     </div>
   )

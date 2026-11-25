@@ -126,6 +126,7 @@ model TeachingAssignment {
 }
 
 model Submission {
+  attemptId String?     @unique
   id        Int         @id @default(autoincrement())
   periodId  Int
   period    Period      @relation(fields: [periodId], references: [id], onDelete: Cascade)
