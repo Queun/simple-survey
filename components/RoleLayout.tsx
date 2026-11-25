@@ -9,7 +9,7 @@ const adminLinks = [
   ['/admin/periods', '调研期管理'], ['/admin/users', '账号管理'],
   ['/admin/statistics', '数据统计'], ['/admin/export', '数据导出'],
 ]
-const principalLinks = [['/principal', '本校看板'], ['/principal/statistics', '本校统计'], ['/principal/export', '数据导出']]
+const principalLinks = [['/principal', '本校看板'], ['/principal/teachers', '教师管理'], ['/principal/statistics', '本校统计'], ['/principal/export', '数据导出']]
 
 export default function RoleLayout({ role, children }: { role: 'ADMIN' | 'PRINCIPAL', children: React.ReactNode }) {
   const path = usePathname()

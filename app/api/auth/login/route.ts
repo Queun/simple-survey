@@ -1,10 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { z } from 'zod'
 import { body, noQuery, name } from '@/lib/api'
 import { prisma } from '@/lib/prisma'
 import { errorResponse, respond } from '@/lib/response'
-import { cookieName, lifetime, signSession } from '@/lib/session'
+import { sessionResponse } from '@/lib/session-response'
 
 export function POST(req: NextRequest) {
   return respond(async () => {
@@ -15,10 +15,6 @@ export function POST(req: NextRequest) {
       return errorResponse('用户名或密码错误', 401)
     }
     if (user.role === 'PRINCIPAL' && !user.schoolId) return errorResponse('账号尚未绑定学校', 403)
-    const response = NextResponse.json({ user: { id: user.id, username, role: user.role, schoolId: user.schoolId } })
-    response.cookies.set(cookieName, signSession(user), {
-      httpOnly: true, sameSite: 'lax', path: '/', maxAge: lifetime, secure: req.nextUrl.protocol === 'https:',
-    })
-    return response
+    return sessionResponse(req, user, { user: { id: user.id, username, role: user.role, schoolId: user.schoolId } })
   })
 }

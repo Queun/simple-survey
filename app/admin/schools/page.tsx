@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import SchoolForm from '@/components/SchoolForm'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -183,6 +184,9 @@ export default function SchoolsPage() {
                   </div>
                 </CardHeader>
                 <CardContent>
+                  <Button className="mb-3" variant="outline" size="sm" asChild>
+                    <Link href={`/admin/schools/${school.id}/teachers`}>教师管理</Link>
+                  </Button>
                   <details className="mb-3 text-sm">
                     <summary className="cursor-pointer">{{ PRIMARY: '小学', MIDDLE: '初中', HIGH: '高中' }[school.stage]} · {school.classes.length} 个班级</summary>
                     {[...new Set(school.classes.map(c => c.grade))].map(grade => (
