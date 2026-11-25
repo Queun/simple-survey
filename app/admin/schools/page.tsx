@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import AdminLayout from '@/components/AdminLayout'
 import SchoolForm from '@/components/SchoolForm'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -11,8 +10,8 @@ interface School {
   id: number
   name: string
   code: string
-  grades: string[]
-  classCount: number
+  stage: 'PRIMARY' | 'MIDDLE' | 'HIGH'
+  classes: { id: number, grade: string, name: string }[]
   _count?: {
     principals: number
     submissions: number
@@ -32,12 +31,8 @@ export default function SchoolsPage() {
 
   async function fetchSchools() {
     try {
-      const token = localStorage.getItem('token')
-      const res = await fetch('/api/admin/schools', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      })
+
+      const res = await fetch('/api/admin/schools')
 
       if (!res.ok) {
         throw new Error('Failed to fetch schools')
@@ -54,17 +49,14 @@ export default function SchoolsPage() {
   }
 
   async function handleDeleteSchool(schoolId: number) {
-    if (!confirm('确定要删除这个学校吗？\n\n这将同时：\n• 解绑该学校的所有校长账号\n• 删除该学校的所有提交数据\n\n此操作不可撤销！')) {
+    if (!confirm('确定要删除这个学校吗？\n\n这将同时：\n• 解绑该学校的所有校长账号\n• 删除班级、教师、任课关系及答卷\n\n此操作不可撤销！')) {
       return
     }
 
     try {
-      const token = localStorage.getItem('token')
+
       const res = await fetch(`/api/admin/schools/${schoolId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+        method: 'DELETE'
       })
 
       const data = await res.json()
@@ -75,14 +67,14 @@ export default function SchoolsPage() {
 
       alert('删除成功')
       fetchSchools()
-    } catch (err: any) {
+    } catch (err) {
       console.error('Error deleting school:', err)
-      alert(err.message || '删除失败')
+      alert(err instanceof Error ? err.message : '删除失败')
     }
   }
 
   return (
-    <AdminLayout>
+    <>
       <div className="space-y-6">
         {/* 页面标题和操作 */}
         <div className="flex items-center justify-between">
@@ -191,6 +183,12 @@ export default function SchoolsPage() {
                   </div>
                 </CardHeader>
                 <CardContent>
+                  <details className="mb-3 text-sm">
+                    <summary className="cursor-pointer">{{ PRIMARY: '小学', MIDDLE: '初中', HIGH: '高中' }[school.stage]} · {school.classes.length} 个班级</summary>
+                    {[...new Set(school.classes.map(c => c.grade))].map(grade => (
+                      <p key={grade} className="mt-2">{grade}　{school.classes.filter(c => c.grade === grade).map(c => c.name).join('、')}</p>
+                    ))}
+                  </details>
                   <div className="flex items-center space-x-6 text-sm text-gray-600">
                     <div className="flex items-center space-x-2">
                       <Users className="h-4 w-4" />
@@ -225,8 +223,9 @@ export default function SchoolsPage() {
             initialData={{
               name: editingSchool.name,
               code: editingSchool.code,
-              grades: editingSchool.grades.join(','),
-              classCount: editingSchool.classCount
+              stage: editingSchool.stage,
+              grades: [...new Set(editingSchool.classes.map(c => c.grade))].join(','),
+              classCount: editingSchool.classes.filter(c => c.grade === editingSchool.classes[0]?.grade).length || 1
             }}
             onClose={() => setEditingSchool(null)}
             onSuccess={() => {
@@ -236,6 +235,6 @@ export default function SchoolsPage() {
           />
         )}
       </div>
-    </AdminLayout>
+    </>
   )
 }

@@ -1,64 +1,18 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
+import { Context, noQuery, param } from '@/lib/api'
+import { errorResponse, respond } from '@/lib/response'
 import { prisma } from '@/lib/prisma'
 
-export async function GET(
-  req: NextRequest,
-  { params }: { params: Promise<{ periodId: string }> }
-) {
-  try {
-    const { periodId } = await params
-    const id = parseInt(periodId)
-
-    if (isNaN(id)) {
-      return NextResponse.json(
-        { error: '无效的期数ID' },
-        { status: 400 }
-      )
-    }
-
-    const period = await prisma.period.findUnique({
-      where: { id },
-      include: {
-        questions: {
-          orderBy: { order: 'asc' }
-        }
-      }
+export function GET(req: NextRequest, ctx: Context) {
+  return respond(async () => {
+    noQuery(req)
+    const period = await prisma.period.findUniqueOrThrow({ where: { id: await param(ctx, 'periodId') },
+      select: { id: true, name: true, startDate: true, endDate: true, isActive: true,
+        subjects: { select: { subject: { select: { id: true, name: true } } }, orderBy: { subject: { order: 'asc' } } },
+        questions: { orderBy: { order: 'asc' }, select: { id: true, content: true, order: true, options: true } },
+      },
     })
-
-    if (!period) {
-      return NextResponse.json(
-        { error: '调研期不存在' },
-        { status: 404 }
-      )
-    }
-
-    if (!period.isActive) {
-      return NextResponse.json(
-        { error: '该调研期已关闭' },
-        { status: 403 }
-      )
-    }
-
-    // 解析 JSON 字段
-    const subjects = JSON.parse(period.subjects)
-    const questions = period.questions.map(q => ({
-      ...q,
-      options: JSON.parse(q.options)
-    }))
-
-    return NextResponse.json({
-      id: period.id,
-      name: period.name,
-      startDate: period.startDate,
-      endDate: period.endDate,
-      subjects,
-      questions
-    })
-  } catch (error) {
-    console.error('Get period error:', error)
-    return NextResponse.json(
-      { error: '获取调研期信息失败' },
-      { status: 500 }
-    )
-  }
+    if (!period.isActive) return errorResponse('该调研期已关闭', 403)
+    return Response.json({ ...period, subjects: period.subjects.map(s => s.subject) })
+  })
 }

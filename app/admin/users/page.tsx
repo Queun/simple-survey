@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import AdminLayout from '@/components/AdminLayout'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -48,12 +47,8 @@ export default function UsersPage() {
 
   async function fetchUsers() {
     try {
-      const token = localStorage.getItem('token')
-      const res = await fetch('/api/admin/users', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      })
+
+      const res = await fetch('/api/admin/users')
 
       if (!res.ok) {
         throw new Error('Failed to fetch users')
@@ -71,12 +66,8 @@ export default function UsersPage() {
 
   async function fetchSchools() {
     try {
-      const token = localStorage.getItem('token')
-      const res = await fetch('/api/admin/schools', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      })
+
+      const res = await fetch('/api/admin/schools')
 
       if (!res.ok) {
         throw new Error('Failed to fetch schools')
@@ -116,12 +107,12 @@ export default function UsersPage() {
     setError('')
 
     try {
-      const token = localStorage.getItem('token')
 
-      const payload: any = {
+
+      const payload: { username: string, role: string, schoolId: number | null, password?: string } = {
         username: formData.username,
         role: formData.role,
-        schoolId: formData.schoolId ? parseInt(formData.schoolId, 10) : null
+        schoolId: formData.role === 'PRINCIPAL' && formData.schoolId ? parseInt(formData.schoolId, 10) : null
       }
 
       // 只有在创建新用户或修改密码时才发送密码
@@ -142,7 +133,7 @@ export default function UsersPage() {
       const res = await fetch(url, {
         method,
         headers: {
-          'Authorization': `Bearer ${token}`,
+
           'Content-Type': 'application/json'
         },
         body: JSON.stringify(payload)
@@ -156,9 +147,9 @@ export default function UsersPage() {
 
       await fetchUsers()
       resetForm()
-    } catch (err: any) {
+    } catch (err) {
       console.error('Error saving user:', err)
-      setError(err.message || '操作失败')
+      setError(err instanceof Error ? err.message : '操作失败')
     }
   }
 
@@ -168,12 +159,9 @@ export default function UsersPage() {
     }
 
     try {
-      const token = localStorage.getItem('token')
+
       const res = await fetch(`/api/admin/users/${userId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+        method: 'DELETE'
       })
 
       if (!res.ok) {
@@ -182,24 +170,24 @@ export default function UsersPage() {
       }
 
       await fetchUsers()
-    } catch (err: any) {
+    } catch (err) {
       console.error('Error deleting user:', err)
-      alert(err.message || '删除失败')
+      alert(err instanceof Error ? err.message : '删除失败')
     }
   }
 
   if (loading) {
     return (
-      <AdminLayout>
+      <>
         <div className="flex items-center justify-center min-h-[60vh]">
           <p className="text-gray-500">加载中...</p>
         </div>
-      </AdminLayout>
+      </>
     )
   }
 
   return (
-    <AdminLayout>
+    <>
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <div>
@@ -271,6 +259,7 @@ export default function UsersPage() {
                     </Label>
                     <select
                       id="schoolId"
+                      disabled={formData.role === 'ADMIN'}
                       className="w-full border border-gray-300 rounded-md px-3 py-2"
                       value={formData.schoolId}
                       onChange={(e) => setFormData({ ...formData, schoolId: e.target.value })}
@@ -377,6 +366,6 @@ export default function UsersPage() {
           </CardContent>
         </Card>
       </div>
-    </AdminLayout>
+    </>
   )
 }

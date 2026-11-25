@@ -9,7 +9,7 @@ interface PeriodFormData {
   name: string
   startDate: string
   endDate: string
-  subjects: string[]
+  subjectIds: number[]
   isActive: boolean
 }
 
@@ -26,36 +26,20 @@ export default function PeriodForm({ periodId, initialData, onClose, onSuccess }
       name: '',
       startDate: '',
       endDate: '',
-      subjects: [],
+      subjectIds: [],
       isActive: true
     }
   )
-  const [subjectInput, setSubjectInput] = useState('')
+  const [subjects, setSubjects] = useState<{id: number, name: string}[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  function handleAddSubject() {
-    const trimmed = subjectInput.trim()
-    if (!trimmed) return
-
-    if (formData.subjects.includes(trimmed)) {
-      alert('该学科已存在')
-      return
-    }
-
-    setFormData({
-      ...formData,
-      subjects: [...formData.subjects, trimmed]
-    })
-    setSubjectInput('')
-  }
-
-  function handleRemoveSubject(index: number) {
-    setFormData({
-      ...formData,
-      subjects: formData.subjects.filter((_, i) => i !== index)
-    })
-  }
+  useEffect(() => {
+    fetch('/api/admin/subjects').then(async res => {
+      if (!res.ok) throw new Error()
+      setSubjects(await res.json())
+    }).catch(() => setError('加载学科列表失败'))
+  }, [])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -77,7 +61,7 @@ export default function PeriodForm({ periodId, initialData, onClose, onSuccess }
       return
     }
 
-    if (formData.subjects.length === 0) {
+    if (formData.subjectIds.length === 0) {
       setError('请至少添加一个学科')
       return
     }
@@ -85,14 +69,14 @@ export default function PeriodForm({ periodId, initialData, onClose, onSuccess }
     setLoading(true)
 
     try {
-      const token = localStorage.getItem('token')
+
       const url = periodId ? `/api/admin/periods/${periodId}` : '/api/admin/periods'
       const method = periodId ? 'PUT' : 'POST'
 
       const res = await fetch(url, {
         method,
         headers: {
-          'Authorization': `Bearer ${token}`,
+
           'Content-Type': 'application/json'
         },
         body: JSON.stringify(formData)
@@ -105,9 +89,9 @@ export default function PeriodForm({ periodId, initialData, onClose, onSuccess }
 
       onSuccess()
       onClose()
-    } catch (err: any) {
+    } catch (err) {
       console.error('Error saving period:', err)
-      setError(err.message || '保存失败')
+      setError(err instanceof Error ? err.message : '保存失败')
     } finally {
       setLoading(false)
     }
@@ -170,50 +154,19 @@ export default function PeriodForm({ periodId, initialData, onClose, onSuccess }
           </div>
 
           {/* 学科列表 */}
-          <div className="space-y-2">
-            <Label>学科列表 *</Label>
-            <div className="flex space-x-2">
-              <input
-                type="text"
-                placeholder="输入学科名称，如：数学"
-                value={subjectInput}
-                onChange={(e) => setSubjectInput(e.target.value)}
-                onKeyPress={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault()
-                    handleAddSubject()
-                  }
-                }}
-                className="flex h-10 flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-              />
-              <Button
-                type="button"
-                onClick={handleAddSubject}
-                variant="outline"
-              >
-                添加
-              </Button>
-            </div>
-            {formData.subjects.length > 0 && (
-              <div className="flex flex-wrap gap-2 mt-3">
-                {formData.subjects.map((subject, idx) => (
-                  <div
-                    key={idx}
-                    className="flex items-center space-x-2 px-3 py-1 bg-blue-50 text-blue-700 rounded-full"
-                  >
-                    <span className="text-sm">{subject}</span>
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveSubject(idx)}
-                      className="text-blue-500 hover:text-blue-700"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          <fieldset className="space-y-2">
+            <legend>本期学科 *</legend>
+            {subjects.map(subject => (
+              <label key={subject.id} className="mr-4 inline-flex items-center gap-2">
+                <input type="checkbox" checked={formData.subjectIds.includes(subject.id)} onChange={e => {
+                  const subjectIds = e.target.checked ? [...formData.subjectIds, subject.id] : formData.subjectIds.filter(id => id !== subject.id)
+                  setFormData({ ...formData, subjectIds })
+                }} />
+                {subject.name}
+              </label>
+            ))}
+            {!subjects.length && <p className="text-sm text-gray-600">请先在学科管理中添加学科。</p>}
+          </fieldset>
 
           {/* 状态 */}
           <div className="flex items-center space-x-2">
@@ -225,7 +178,7 @@ export default function PeriodForm({ periodId, initialData, onClose, onSuccess }
               className="h-4 w-4 rounded border-gray-300"
             />
             <Label htmlFor="isActive" className="font-normal cursor-pointer">
-              立即开启此调研期（学生可以开始填写）
+              开启此调研期
             </Label>
           </div>
 

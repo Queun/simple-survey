@@ -1,169 +1,29 @@
-import { NextRequest } from 'next/server'
+import { z } from 'zod'
 import { withAuth } from '@/lib/auth'
-import { successResponse, errorResponse } from '@/lib/response'
+import { body, param } from '@/lib/api'
+import { periodForm } from '@/lib/forms'
+import { periodInclude, periodView } from '@/lib/periods'
 import { prisma } from '@/lib/prisma'
 
-/**
- * GET /api/admin/periods/[periodId]
- * 获取单个调研期详情
- */
-export const GET = withAuth(
-  async (req: NextRequest, user, { params }: { params: Promise<{ periodId: string }> }) => {
-    try {
-      const { periodId } = await params
-      const id = parseInt(periodId, 10)
+export const GET = withAuth('ADMIN', async (_, user, ctx) => Response.json(periodView(await prisma.period.findUniqueOrThrow({
+  where: { id: await param(ctx, 'periodId') }, include: periodInclude,
+}))))
 
-      if (isNaN(id)) {
-        return errorResponse('无效的期数ID', 400)
-      }
+export const PUT = withAuth('ADMIN', async (req, user, ctx) => {
+  const id = await param(ctx, 'periodId')
+  const { subjectIds, ...data } = await body(req, periodForm)
+  const period = await prisma.period.update({
+    where: { id }, data: { ...data, subjects: { deleteMany: {}, create: subjectIds.map(subjectId => ({ subjectId })) } },
+    include: periodInclude,
+  })
+  return Response.json(periodView(period))
+})
 
-      const period = await prisma.period.findUnique({
-        where: { id },
-        include: {
-          _count: {
-            select: {
-              questions: true,
-              submissions: true
-            }
-          }
-        }
-      })
+export const PATCH = withAuth('ADMIN', async (req, user, ctx) => Response.json(await prisma.period.update({
+  where: { id: await param(ctx, 'periodId') }, data: await body(req, z.strictObject({ isActive: z.boolean() })),
+})))
 
-      if (!period) {
-        return errorResponse('调研期不存在', 404)
-      }
-
-      return successResponse({
-        ...period,
-        subjects: JSON.parse(period.subjects)
-      })
-    } catch (error) {
-      console.error('Error fetching period:', error)
-      return errorResponse('获取调研期失败', 500)
-    }
-  },
-  { requiredRole: 'ADMIN' }
-)
-
-/**
- * PUT /api/admin/periods/[periodId]
- * 更新调研期信息
- */
-export const PUT = withAuth(
-  async (req: NextRequest, user, { params }: { params: Promise<{ periodId: string }> }) => {
-    try {
-      const { periodId } = await params
-      const id = parseInt(periodId, 10)
-
-      if (isNaN(id)) {
-        return errorResponse('无效的期数ID', 400)
-      }
-
-      const body = await req.json()
-      const { name, startDate, endDate, subjects, isActive } = body
-
-      if (!name || !startDate || !endDate || !subjects || subjects.length === 0) {
-        return errorResponse('缺少必填字段', 400)
-      }
-
-      const period = await prisma.period.update({
-        where: { id },
-        data: {
-          name,
-          startDate: new Date(startDate),
-          endDate: new Date(endDate),
-          subjects: JSON.stringify(subjects),
-          isActive: isActive ?? true
-        }
-      })
-
-      return successResponse({
-        ...period,
-        subjects: JSON.parse(period.subjects)
-      })
-    } catch (error) {
-      console.error('Error updating period:', error)
-      return errorResponse('更新调研期失败', 500)
-    }
-  },
-  { requiredRole: 'ADMIN' }
-)
-
-/**
- * PATCH /api/admin/periods/[periodId]
- * 部分更新调研期（主要用于切换状态）
- */
-export const PATCH = withAuth(
-  async (req: NextRequest, user, { params }: { params: Promise<{ periodId: string }> }) => {
-    try {
-      const { periodId } = await params
-      const id = parseInt(periodId, 10)
-
-      if (isNaN(id)) {
-        return errorResponse('无效的期数ID', 400)
-      }
-
-      const body = await req.json()
-      const { isActive } = body
-
-      if (typeof isActive !== 'boolean') {
-        return errorResponse('isActive必须是布尔值', 400)
-      }
-
-      const period = await prisma.period.update({
-        where: { id },
-        data: { isActive }
-      })
-
-      return successResponse({
-        ...period,
-        subjects: JSON.parse(period.subjects)
-      })
-    } catch (error) {
-      console.error('Error toggling period status:', error)
-      return errorResponse('切换状态失败', 500)
-    }
-  },
-  { requiredRole: 'ADMIN' }
-)
-
-/**
- * DELETE /api/admin/periods/[periodId]
- * 一键删除调研期：删除所有提交数据（级联删除答案）、删除调研期（级联删除题目）
- * 使用事务保证原子性
- */
-export const DELETE = withAuth(
-  async (req: NextRequest, user, { params }: { params: Promise<{ periodId: string }> }) => {
-    try {
-      const { periodId } = await params
-      const id = parseInt(periodId, 10)
-
-      if (isNaN(id)) {
-        return errorResponse('无效的期数ID', 400)
-      }
-
-      const period = await prisma.period.findUnique({
-        where: { id }
-      })
-
-      if (!period) {
-        return errorResponse('调研期不存在', 404)
-      }
-
-      await prisma.$transaction([
-        prisma.submission.deleteMany({
-          where: { periodId: id }
-        }),
-        prisma.period.delete({
-          where: { id }
-        })
-      ])
-
-      return successResponse({ message: '调研期已删除，相关题目和提交数据已清除' })
-    } catch (error) {
-      console.error('Error deleting period:', error)
-      return errorResponse('删除调研期失败', 500)
-    }
-  },
-  { requiredRole: 'ADMIN' }
-)
+export const DELETE = withAuth('ADMIN', async (_, user, ctx) => {
+  await prisma.period.delete({ where: { id: await param(ctx, 'periodId') } })
+  return Response.json({ ok: true })
+})

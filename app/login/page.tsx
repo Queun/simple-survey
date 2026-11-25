@@ -33,15 +33,11 @@ export default function LoginPage() {
         return
       }
 
-      // 保存token到localStorage
-      localStorage.setItem('token', data.token)
-      localStorage.setItem('user', JSON.stringify(data.user))
-
       // 根据角色跳转
       if (data.user.role === 'ADMIN') {
-        router.push('/admin')
+        router.replace('/admin')
       } else {
-        router.push('/principal')
+        router.replace('/principal')
       }
     } catch (err) {
       console.error('Login error:', err)

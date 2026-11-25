@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "学校匿名问卷调研系统",
-  description: "供学生匿名评价各学科教学情况",
+  title: "学校匿名评教系统",
+  description: "学生匿名评价本班任课教师",
 };
 
 export default function RootLayout({

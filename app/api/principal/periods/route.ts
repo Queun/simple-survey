@@ -1,60 +1,14 @@
-import { NextRequest } from 'next/server'
+import { z } from 'zod'
 import { withAuth } from '@/lib/auth'
-import { successResponse, errorResponse } from '@/lib/response'
+import { query, urlId } from '@/lib/api'
 import { prisma } from '@/lib/prisma'
+import { errorResponse } from '@/lib/response'
 
-/**
- * GET /api/principal/periods
- * 获取所有调研期列表（校长只读）
- */
-export const GET = withAuth(
-  async (req: NextRequest, user) => {
-    try {
-      // 校长必须绑定学校
-      if (!user.schoolId) {
-        return errorResponse('您的账号未绑定学校', 403)
-      }
-      const schoolId = user.schoolId
-
-      const periods = await prisma.period.findMany({
-        include: {
-          _count: {
-            select: {
-              questions: true
-            }
-          }
-        },
-        orderBy: {
-          createdAt: 'desc'
-        }
-      })
-
-      // 为每个期数查询本校的提交数
-      const periodsWithSchoolSubmissions = await Promise.all(
-        periods.map(async (period) => {
-          const schoolSubmissionCount = await prisma.submission.count({
-            where: {
-              periodId: period.id,
-              schoolId
-            }
-          })
-
-          return {
-            ...period,
-            subjects: JSON.parse(period.subjects),
-            _count: {
-              questions: period._count.questions,
-              submissions: schoolSubmissionCount
-            }
-          }
-        })
-      )
-
-      return successResponse(periodsWithSchoolSubmissions)
-    } catch (error) {
-      console.error('Error fetching periods:', error)
-      return errorResponse('获取调研期列表失败', 500)
-    }
-  },
-  { requiredRole: 'PRINCIPAL' }
-)
+export const GET = withAuth('PRINCIPAL', async (req, user) => {
+  const { schoolId } = query(req, z.strictObject({ schoolId: urlId.optional() }))
+  if (schoolId !== undefined && schoolId !== user.schoolId) return errorResponse('只能访问本校数据', 403)
+  const periods = await prisma.period.findMany({ orderBy: { id: 'desc' },
+    select: { id: true, name: true, startDate: true, endDate: true, isActive: true },
+  })
+  return Response.json(periods)
+}, { hasQuery: true })

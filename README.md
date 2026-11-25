@@ -1,36 +1,28 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 学校匿名评教系统
 
-## Getting Started
+## 本地启动
 
-First, run the development server:
+在项目根目录使用 Node.js 24。首次启动时复制配置，用 `openssl rand -hex 32` 生成随机值并填入 `.env` 的 `JWT_SECRET`。默认数据库为 `prisma/dev.db`。第二版从空库开始，请先另行归档已有的旧库。
 
-```bash
+```sh
+cp .env.example .env
+# 填好 JWT_SECRET 后，在全新工作目录执行
+npm ci
+npx prisma generate
+touch prisma/dev.db
+npx prisma migrate deploy
+npx prisma db seed
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+打开 <http://localhost:3000>。演示账号、密码和学生问卷链接由种子脚本打印。种子脚本只初始化空库。学生问卷目前维护中。
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 检查
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```sh
+npm run lint
+npm test
+npm run build
+```
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+测试自动创建和清理独立的临时 SQLite 库。
