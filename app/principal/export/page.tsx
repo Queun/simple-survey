@@ -1,3 +1,7 @@
-export default function Page() {
-  return <section><h1 className="text-2xl font-bold">数据导出</h1><p className="mt-3 text-gray-600">建设中</p></section>
+import { ExportPage } from '@/components/statistics/shared'
+import { pageScope, ReportPageProps } from '@/lib/statistics-page'
+
+export default async function Page({ searchParams }: ReportPageProps) {
+  const selection = await pageScope('PRINCIPAL', await searchParams)
+  return <ExportPage role="principal" selection={selection} />
 }
