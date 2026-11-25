@@ -57,7 +57,7 @@ export function SurveyForm({ periodId, name, questions, schools, initialSchool, 
   const completed = new Set(subjects.filter(s => questions.every(q =>
     q.options.some(o => o.score === draft?.answers[s.id]?.[q.id]))).map(s => s.id))
   const nextSubject = subjects.find(s => !completed.has(s.id) && s.id !== current)
-  const actionStyle = 'min-h-12 px-6 text-lg'
+  const actionStyle = 'max-md:w-full min-h-12 px-6 text-lg'
 
   async function start() {
     if (!group || busy) return
@@ -121,7 +121,7 @@ export function SurveyForm({ periodId, name, questions, schools, initialSchool, 
 
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-8 text-slate-900 sm:py-12">
-      <div className="mx-auto max-w-3xl space-y-5">
+      <div className="mx-auto max-w-3xl space-y-5 wrap-anywhere">
         <header>
           <h1 className="text-3xl font-bold">{name}</h1>
           <p className="mt-2 text-lg text-teal-800">匿名填写，老师看不到是谁填的</p>
@@ -132,12 +132,12 @@ export function SurveyForm({ periodId, name, questions, schools, initialSchool, 
               <p className="font-medium">{school?.name} · {grade} · {group?.name}</p>
               <Button variant="outline" disabled={busy} onClick={changeClass}>返回选班</Button>
             </div>
-            <fieldset disabled={busy}>
+            <fieldset disabled={busy} className="min-w-0">
               <SubjectTabs subjects={subjects} completed={completed} current={current} onChange={setCurrent}>
                 <QuestionList questions={questions} answers={draft.answers[current] ?? {}} onAnswerChange={answer} />
               </SubjectTabs>
             </fieldset>
-            <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="grid grid-cols-1 gap-3 md:flex md:flex-wrap md:items-center md:justify-between">
               <p aria-live="polite">已完成 {completed.size} / {subjects.length} 个学科</p>
               {nextSubject && <Button variant="outline" className={actionStyle} disabled={busy}
                 onClick={() => { setCurrent(nextSubject.id); window.scrollTo(0, 0) }}>下一学科</Button>}
@@ -147,7 +147,7 @@ export function SurveyForm({ periodId, name, questions, schools, initialSchool, 
             </div>
           </>
         ) : (
-          <fieldset disabled={busy} className="space-y-6 rounded-xl border bg-white p-6">
+          <fieldset disabled={busy} className="min-w-0 space-y-6 rounded-xl border bg-white p-6">
             <h2 className="text-xl font-semibold">选择你的班级</h2>
             <CascadeSelector schools={schools} schoolId={schoolId} grade={grade} classId={classId}
               onSchoolChange={id => { setSchool(id); setGrade(''); setClass(''); setError('') }}

@@ -13,15 +13,15 @@ export function QuestionList({ questions, answers, onAnswerChange }: Props) {
     <div className="divide-y rounded-xl border bg-white px-5 sm:px-7">
       {questions.map((q, index) => (
         <div key={q.id} className="py-5">
-          <fieldset>
-            <legend className="mb-3 text-xl font-semibold">{index + 1}. {q.content}</legend>
-            <div className="flex flex-wrap gap-2">
+          <fieldset className="min-w-0">
+            <legend className="mb-3 max-w-full wrap-anywhere text-xl font-semibold">{index + 1}. {q.content}</legend>
+            <div className="grid grid-cols-1 gap-2 md:flex md:flex-wrap">
               {q.options.map((option, i) => (
-                <label key={i} className="flex min-h-12 cursor-pointer items-center gap-2 rounded-lg border px-4 text-lg has-checked:border-teal-700 has-checked:bg-teal-50">
-                  <input type="radio" name={'question-' + q.id} className="size-5 accent-teal-700"
+                <label key={i} className="flex min-h-12 cursor-pointer items-center gap-2 rounded-lg border px-4 text-lg max-md:py-2 has-checked:border-teal-700 has-checked:bg-teal-50">
+                  <input type="radio" name={'question-' + q.id} className="size-5 shrink-0 accent-teal-700"
                     checked={answers[q.id] === option.score}
                     onChange={() => onAnswerChange(q.id, option.score)} />
-                  {option.label}
+                  <span className="min-w-0 wrap-anywhere">{option.label}</span>
                 </label>
               ))}
             </div>

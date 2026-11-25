@@ -16,9 +16,9 @@ export function Title({ title, children }: { title: string, children?: ReactNode
 
 export function PeriodPicker({ periods, period }: ReportingPeriods) {
   if (!periods.length) return <p>尚未创建调研期。</p>
-  return <form method="get" className="flex flex-wrap items-center gap-2">
+  return <form method="get" className="flex max-w-full flex-wrap items-center gap-2">
     <label htmlFor="report-period" className="text-sm font-medium">调研期</label>
-    <select id="report-period" name="periodId" defaultValue={period?.id ?? ''} required className={selectStyle}>
+    <select id="report-period" name="periodId" defaultValue={period?.id ?? ''} required className={selectStyle + ' max-w-full'}>
       <option value="" disabled>选择调研期</option>
       {periods.map(p => <option key={p.id} value={p.id}>{p.name}{p.current ? '（进行中）' : ''}</option>)}
     </select>
@@ -27,10 +27,10 @@ export function PeriodPicker({ periods, period }: ReportingPeriods) {
 }
 
 export function Cards({ items }: { items: [string, string | number][] }) {
-  return <dl className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-    {items.map(([label, value]) => <div key={label} className="rounded-xl border bg-white p-5">
+  return <dl className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+    {items.map(([label, value]) => <div key={label} className="rounded-xl border bg-white p-4 sm:p-5">
       <dt className="text-sm text-slate-600">{label}</dt>
-      <dd className="mt-2 text-3xl font-semibold tracking-tight text-slate-900 tabular-nums">{value}</dd>
+      <dd className="mt-2 text-2xl font-semibold sm:text-3xl tracking-tight text-slate-900 tabular-nums">{value}</dd>
     </div>)}
   </dl>
 }

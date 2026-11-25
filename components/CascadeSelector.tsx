@@ -18,7 +18,7 @@ export function CascadeSelector({ schools, schoolId, grade, classId, onSchoolCha
   const classes = grades.find(g => g.name === grade)?.classes ?? []
   const style = 'mt-2 min-h-12 w-full rounded-lg border bg-white px-3 text-lg disabled:bg-slate-50'
   return (
-    <div className="grid gap-5 sm:grid-cols-2">
+    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
       <div className="sm:col-span-2">
         <Label htmlFor="school">学校</Label>
         <select id="school" className={style} value={schoolId} onChange={e => onSchoolChange(e.target.value)}>

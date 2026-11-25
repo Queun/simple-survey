@@ -29,19 +29,19 @@ export default function TeacherEntry({ schools, schoolCode }: { schools: School[
       <div className="my-6 flex gap-1 rounded-md bg-slate-100 p-1">
         {(['login', 'register'] as const).map(value => <button type="button" key={value} disabled={busy}
           aria-pressed={mode === value} onClick={() => { setMode(value); setError('') }}
-          className="flex-1 rounded py-2 text-sm aria-pressed:bg-white aria-pressed:font-semibold aria-pressed:shadow-sm">
+          className="max-md:min-h-11 flex-1 rounded py-2 text-sm aria-pressed:bg-white aria-pressed:font-semibold aria-pressed:shadow-sm">
           {value === 'login' ? '登录' : '注册'}</button>)}
       </div>
-      <form onSubmit={submit} className="grid gap-4">
+      <form onSubmit={submit} className="grid grid-cols-1 gap-4">
         {register && <label className="grid gap-1 text-sm">所在学校
-          <select required value={schoolId} onChange={e => setSchoolId(e.target.value)} className="rounded-md border p-2">
+          <select required value={schoolId} onChange={e => setSchoolId(e.target.value)} className="w-full min-w-0 rounded-md border p-2 max-md:min-h-11 max-md:text-base">
             <option value="">请选择学校</option>{schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select></label>}
-        <label className="grid gap-1 text-sm">姓名<Input name="name" required autoComplete="name" /></label>
-        <label className="grid gap-1 text-sm">手机号<Input name="phone" type="tel" required pattern="1[3-9][0-9]{9}" maxLength={11}
+        <label className="grid gap-1 text-sm">姓名<Input className="max-md:min-h-11 max-md:text-base" name="name" required autoComplete="name" /></label>
+        <label className="grid gap-1 text-sm">手机号<Input className="max-md:min-h-11 max-md:text-base" name="phone" type="tel" inputMode="numeric" required pattern="1[3-9][0-9]{9}" maxLength={11}
           title="请输入 11 位大陆手机号" placeholder="11 位手机号" autoComplete="tel-national" /></label>
         {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
-        <Button disabled={busy} type="submit">{busy ? '正在提交…' : register ? '注册并登记任课' : '登录'}</Button>
+        <Button className="max-md:min-h-11" disabled={busy} type="submit">{busy ? '正在提交…' : register ? '注册并登记任课' : '登录'}</Button>
       </form>
     </section>
   </main>
