@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { Prisma } from '@prisma/client'
 import { Context, urlId } from './api'
 import { withAuth } from './auth'
+import { openPeriodWhere } from './periods'
 import { prisma } from './prisma'
 import { RequestError } from './response'
 import { classOrder } from './schools'
@@ -23,9 +24,8 @@ export async function requireTeacher(db: Prisma.TransactionClient, schoolId: num
 }
 
 export async function timetable(db: Prisma.TransactionClient, schoolId: number, currentPeriod: boolean) {
-  const now = new Date()
   const periods = currentPeriod ? await db.period.findMany({
-    where: { isActive: true, startDate: { lte: now }, endDate: { gte: now } }, select: { id: true },
+    where: openPeriodWhere(), select: { id: true },
   }) : []
   const subjects = await db.subject.findMany({
     where: periods.length ? { periods: { some: { periodId: { in: periods.map(p => p.id) } } } } : {},
