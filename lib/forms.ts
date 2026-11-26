@@ -4,7 +4,8 @@ import { id, name } from './api'
 const unique = (items: unknown[]) => new Set(items).size === items.length
 export const schoolForm = z.strictObject({
   name, code: name.regex(/^[a-zA-Z0-9]+$/), stage: z.enum(['PRIMARY', 'MIDDLE', 'HIGH']),
-  grades: z.array(name).min(1).max(30).refine(unique), classCount: id.max(50),
+  grades: z.array(z.strictObject({ name, classCount: id.max(50) })).min(1).max(30)
+    .refine(grades => unique(grades.map(grade => grade.name))),
 })
 export const subjectForm = z.strictObject({ name, order: z.int32().nonnegative() })
 // 学校按北京时间理解日期：开始日从当天 0 点起，结束日包含当天整天

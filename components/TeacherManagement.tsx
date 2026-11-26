@@ -27,7 +27,7 @@ export function ManagementPanel({ url, data, reload }: { url: string, data: Mana
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState('')
   const [errors, setErrors] = useState<{ row: number, reason: string }[]>([])
-  const [manualLink, setManualLink] = useState('')
+  const [manualNotice, setManualNotice] = useState('')
   const [editingCell, setEditingCell] = useState('')
   const filled = data.classes.reduce((sum, c) => sum + c.assignments.length, 0)
   const total = data.classes.length * data.subjects.length
@@ -44,10 +44,25 @@ export function ManagementPanel({ url, data, reload }: { url: string, data: Mana
       setNotice(result)
     } catch (e) { setNotice(message(e)) } finally { setBusy(false) }
   }
-  async function copyLink() {
+  async function copyNotice() {
     const link = new URL(registerPath, window.location.origin).href
-    try { await navigator.clipboard.writeText(link); setNotice('教师登记链接已复制') }
-    catch { setManualLink(link); setNotice('请选择下方链接，手动复制') }
+    const text = [
+      `各位老师好！${data.school.name}本学期开展学生匿名评教，请先登记您任教的班级和学科。`,
+      `登记链接：${link}`,
+      `本校登记口令：${data.school.registrationCode}`,
+      '首次使用请点“注册”，填写本人姓名、手机号和登记口令。已登记的老师可直接用姓名和手机号登录。',
+      '登录后勾选您任教的班级和学科，点“保存任课”。如发现任课已被占用或登记有误，请联系教务处。',
+    ].join('\n')
+    try { await navigator.clipboard.writeText(text); setManualNotice(''); setNotice('登记通知已复制') }
+    catch { setManualNotice(text); setNotice('请选择下方通知，手动复制') }
+  }
+  function rotateCode() {
+    if (!window.confirm('更换后旧口令立即失效，已登记的老师仍可登录。确定更换？')) return
+    setManualNotice('')
+    void change(async () => {
+      await readJson(url + '/registration-code', { method: 'POST' })
+      return '口令已更换，请将新通知发给本校老师。'
+    })
   }
   function saveTeacher(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -73,9 +88,13 @@ export function ManagementPanel({ url, data, reload }: { url: string, data: Mana
   return <div className="mx-auto max-w-7xl space-y-5">
     <header className="flex flex-wrap items-end justify-between gap-4">
       <div><p className="mb-1 text-sm text-slate-600">{data.school.name}</p><h1 className="text-2xl font-semibold">教师管理</h1></div>
-      <Button variant="outline" onClick={copyLink}>复制教师登记链接</Button>
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-sm">登记口令 <strong className="font-mono">{data.school.registrationCode}</strong></span>
+        <Button variant="outline" disabled={busy} onClick={rotateCode}>更换口令</Button>
+        <Button variant="outline" disabled={busy} onClick={copyNotice}>复制登记通知</Button>
+      </div>
     </header>
-    {manualLink && <Input aria-label="教师登记链接" readOnly value={manualLink} onFocus={e => e.target.select()} />}
+    {manualNotice && <textarea aria-label="教师登记通知" rows={5} className="w-full rounded border p-2 text-sm" readOnly value={manualNotice} onFocus={e => e.target.select()} />}
     <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-white p-3">
       <Button variant="outline" size="sm" asChild><a href={url + '/workbook?mode=template'} download>下载导入模板</a></Button>
       <label className="relative inline-flex h-8 items-center rounded-md bg-slate-900 px-3 text-sm text-white focus-within:ring-2">

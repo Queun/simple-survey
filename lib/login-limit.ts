@@ -5,9 +5,13 @@ const limitFor = (key: string) => key.startsWith('ip:') ? 30 : 5
 const failures = new Map<string, { times: number[], expires: number, locked: boolean }>()
 let nextSweep = 0
 
-export function loginKeys(phone: string, headers: Headers) {
+export function ipKey(headers: Headers) {
   const ip = headers.get('x-forwarded-for')?.split(',').at(-1)?.trim() || headers.get('x-real-ip') || 'local'
-  return ['phone:' + phone, 'ip:' + ip]
+  return 'ip:' + ip
+}
+
+export function loginKeys(phone: string, headers: Headers) {
+  return ['phone:' + phone, ipKey(headers)]
 }
 
 export function locked(keys: string[], now = Date.now()) {

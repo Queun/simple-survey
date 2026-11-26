@@ -1,3 +1,4 @@
+import { GET as publicSchools } from '@/app/api/schools/route'
 import { execFileSync } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { NextRequest } from 'next/server'
@@ -51,6 +52,18 @@ describe('学生匿名填报（演示种子库）', () => {
     otherSubject = excluded.id
     const teacher = await prisma.teacher.findFirstOrThrow({ where: { schoolId } })
     await prisma.teachingAssignment.create({ data: { classId, subjectId: otherSubject, teacherId: teacher.id } })
+  })
+
+  it('公开学校和两级学生问卷都不返回登记口令', async () => {
+    const { periodId, classId } = form
+    const params = ctx({ periodId: String(periodId), classId: String(classId) })
+    const codes = await prisma.school.findMany({ select: { registrationCode: true } })
+    for (const res of [await publicSchools(request), await survey(request, params), await classSurvey(request, params)]) {
+      expect(res.status).toBe(200)
+      const json = await res.text()
+      expect(json).not.toContain('registrationCode')
+      for (const { registrationCode } of codes) expect(json).not.toContain(JSON.stringify(registrationCode))
+    }
   })
 
   it('两级公开接口 → 完整提交 → 查库逐条核对；教师、学校和满分取自提交时的配置', async () => {

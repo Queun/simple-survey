@@ -17,8 +17,8 @@ describe('S10 统计与导出', () => {
   let schoolId: number, otherId: number, periodId: number, inactiveId: number
   let principal: string, admin: string, teacher: string
   beforeAll(async () => {
-    const school = await prisma.school.create({ data: { name: '甲校', code: 'A', stage: 'PRIMARY' } })
-    const other = await prisma.school.create({ data: { name: '乙校', code: 'B', stage: 'PRIMARY' } })
+    const school = await prisma.school.create({ data: { name: '甲校', code: 'A', registrationCode: '123456', stage: 'PRIMARY' } })
+    const other = await prisma.school.create({ data: { name: '乙校', code: 'B', registrationCode: '123456', stage: 'PRIMARY' } })
     schoolId = school.id
     otherId = other.id
     const makeClass = (schoolId: number, grade: string, order: number) => prisma.schoolClass.create({ data: {

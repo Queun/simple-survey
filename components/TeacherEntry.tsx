@@ -17,7 +17,7 @@ export default function TeacherEntry({ schools, schoolCode }: { schools: School[
     setBusy(true)
     setError('')
     try {
-      const data = { name: fields.get('name'), phone: fields.get('phone'), ...(register ? { schoolId: Number(schoolId) } : {}) }
+      const data = { name: fields.get('name'), phone: fields.get('phone'), ...(register ? { schoolId: Number(schoolId), code: fields.get('code') } : {}) }
       await readJson('/api/teacher/' + mode, jsonOptions('POST', data))
       window.location.replace('/teacher/classes')
     } catch (e) { setError(message(e)); setBusy(false) }
@@ -40,9 +40,13 @@ export default function TeacherEntry({ schools, schoolCode }: { schools: School[
         <label className="grid gap-1 text-sm">姓名<Input className="max-md:min-h-11 max-md:text-base" name="name" required autoComplete="name" /></label>
         <label className="grid gap-1 text-sm">手机号<Input className="max-md:min-h-11 max-md:text-base" name="phone" type="tel" inputMode="numeric" required pattern="1[3-9][0-9]{9}" maxLength={11}
           title="请输入 11 位大陆手机号" placeholder="11 位手机号" autoComplete="tel-national" /></label>
+        {register && <label className="grid gap-1 text-sm">登记口令
+          <Input className="max-md:min-h-11 max-md:text-base" name="code" inputMode="numeric" required
+            pattern="[0-9]{6}" maxLength={6} placeholder="6 位数字" aria-describedby="registration-hint" /></label>}
         {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
         <Button className="max-md:min-h-11" disabled={busy} type="submit">{busy ? '正在提交…' : register ? '注册并登记任课' : '登录'}</Button>
       </form>
+      {register && <p id="registration-hint" className="mt-2 text-sm text-slate-600">口令见学校发的通知</p>}
     </section>
   </main>
 }

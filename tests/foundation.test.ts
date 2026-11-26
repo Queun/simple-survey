@@ -37,7 +37,7 @@ describe('后台会话和学校范围', () => {
   let admin: string, principal: string, schoolId: number, principalId: number
   beforeAll(async () => {
     const school = await prisma.school.create({ data: {
-      name: '权限小学', code: 'AUTH', stage: 'PRIMARY', classes: { create: { name: '1班', order: 1, grade: '一年级', gradeOrder: 1 } },
+      name: '权限小学', code: 'AUTH', registrationCode: '123456', stage: 'PRIMARY', classes: { create: { name: '1班', order: 1, grade: '一年级', gradeOrder: 1 } },
     } })
     schoolId = school.id
     const password = await bcrypt.hash('test-password', 4)
@@ -164,22 +164,53 @@ describe('后台会话和学校范围', () => {
     expect((await principalPeriods(request('/', cookie), ctx())).status).toBe(401)
   })
 
-  it('批量调整班级保留原班级 ID，不能移除有任课的班级', async () => {
-    const data = { name: '批量小学', code: 'BATCH', grades: ['一年级'], classCount: 2, stage: 'PRIMARY' }
-    const school = await (await createSchool(request('/', admin, 'POST', data), ctx())).json()
+  it('按年级建班和增减班级，保留 ID，拒绝删除有任课或答卷的班级并回滚学校编辑', async () => {
+    const grades = (first: number, second: number) => [
+      { name: '一年级', classCount: first }, { name: '二年级', classCount: second },
+    ]
+    const data = { name: '批量小学', code: 'BATCH', grades: grades(2, 3), stage: 'PRIMARY' }
+    const res = await createSchool(request('/', admin, 'POST', data), ctx())
+    expect(res.status).toBe(201)
+    const school = await res.json()
     const key = ctx({ schoolId: String(school.id) })
-    const update = (classCount: number) => editSchool(request('/', admin, 'PUT', { ...data, classCount }), key)
-    expect((await (await update(3)).json()).classes[0].id).toBe(school.classes[0].id)
+    const update = (first: number, second: number, name = data.name) =>
+      editSchool(request('/', admin, 'PUT', { ...data, name, grades: grades(first, second) }), key)
+    type Group = { id: number, grade: string, name: string }
+    const labels = (rows: Group[]) => rows.map(c => c.grade + c.name)
+    expect(labels(school.classes)).toEqual(['一年级1班', '一年级2班', '二年级1班', '二年级2班', '二年级3班'])
+    expect(school).not.toHaveProperty('registrationCode')
+    const created = await prisma.school.findUniqueOrThrow({ where: { id: school.id } })
+    expect(created.registrationCode).toMatch(/^\d{6}$/)
+    const edited = await update(3, 2)
+    expect(edited.status).toBe(200)
+    const saved = await edited.json()
+    expect(labels(saved.classes)).toEqual(['一年级1班', '一年级2班', '一年级3班', '二年级1班', '二年级2班'])
+    for (const kept of [0, 1, 2, 3]) expect(saved.classes).toContainEqual(school.classes[kept])
+    expect(saved).not.toHaveProperty('registrationCode')
+
     const teacher = await prisma.teacher.create({ data: { name: '任课', phone: 'batch', schoolId: school.id, source: 'SELF' } })
     const subject = await prisma.subject.create({ data: { name: '批量学科', order: 1 } })
-    await prisma.teachingAssignment.create({ data: { classId: school.classes[1].id, teacherId: teacher.id, subjectId: subject.id } })
-    expect((await update(1)).status).toBe(409)
-    expect(await prisma.schoolClass.count({ where: { schoolId: school.id } })).toBe(3)
+    await prisma.teachingAssignment.create({ data: { classId: saved.classes[2].id, teacherId: teacher.id, subjectId: subject.id } })
+    const period = await prisma.period.create({ data: { name: '批量学期', startDate: new Date(), endDate: new Date() } })
+    await prisma.submission.create({ data: { periodId: period.id, schoolId: school.id, classId: saved.classes[4].id } })
+    for (const [attempt, occupied] of [
+      [() => update(2, 4, '修改任课班'), '一年级3班'],
+      [() => update(4, 1, '修改答卷班'), '二年级2班'],
+    ] as const) {
+      const rejected = await attempt()
+      expect(rejected.status).toBe(409)
+      expect((await rejected.json()).error).toContain(occupied)
+      const current = await prisma.school.findUniqueOrThrow({ where: { id: school.id },
+        include: { classes: { orderBy: [{ gradeOrder: 'asc' }, { order: 'asc' }] } } })
+      expect(current.registrationCode).toBe(created.registrationCode)
+      expect(current.name).toBe(data.name)
+      expect(current.classes).toEqual(saved.classes)
+    }
   })
 })
 
 async function scoredSchool(code: string) {
-  const school = await prisma.school.create({ data: { code, name: code, stage: 'MIDDLE',
+  const school = await prisma.school.create({ data: { code, name: code, registrationCode: '123456', stage: 'MIDDLE',
     principals: { create: { username: code, role: 'PRINCIPAL', password: 'unused' } },
     classes: { create: { grade: '初一', gradeOrder: 1, name: '1班', order: 1 } },
     teachers: { create: { name: code, phone: code, source: 'IMPORT' } },
