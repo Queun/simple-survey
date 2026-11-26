@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useState } from 'react'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import TimetableGrid from './TimetableGrid'
+import ClearAssignmentsDialog from './ClearAssignmentsDialog'
 import { jsonOptions, ManagementData, message, readJson, Teacher } from './teacher-data'
 
 export default function TeacherManagement({ scope }: { scope: string }) {
@@ -23,6 +24,8 @@ export default function TeacherManagement({ scope }: { scope: string }) {
 export function ManagementPanel({ url, data, reload }: { url: string, data: ManagementData, reload: () => Promise<void> }) {
   const [tab, setTab] = useState<'coverage' | 'roster'>('coverage')
   const [search, setSearch] = useState('')
+  const [assignedOnly, setAssignedOnly] = useState(false)
+  const [showClearDialog, setShowClearDialog] = useState(false)
   const [editor, setEditor] = useState<Teacher | 'new' | null>(null)
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState('')
@@ -32,7 +35,20 @@ export function ManagementPanel({ url, data, reload }: { url: string, data: Mana
   const filled = data.classes.reduce((sum, c) => sum + c.assignments.length, 0)
   const total = data.classes.length * data.subjects.length
   const registerPath = '/teacher?school=' + encodeURIComponent(data.school.code)
-  const matches = data.teachers.filter(t => t.name.includes(search.trim()) || t.phone.includes(search.trim()))
+  const matches = data.teachers.filter(t => (!assignedOnly || t._count.assignments > 0)
+    && (t.name.includes(search.trim()) || t.phone.includes(search.trim())))
+
+  async function onCleared(count: number) {
+    const result = `已清空 ${count} 条任课`
+    setErrors([])
+    try {
+      await reload()
+      setNotice(result)
+    } catch {
+      setNotice(result + '。覆盖表刷新失败，请刷新页面查看。')
+    }
+    setShowClearDialog(false)
+  }
 
   async function change(action: () => Promise<string>) {
     setBusy(true)
@@ -115,7 +131,12 @@ export function ManagementPanel({ url, data, reload }: { url: string, data: Mana
       <Button variant={tab === 'roster' ? 'default' : 'ghost'} onClick={() => setTab('roster')}>教师名单（{data.teachers.length}）</Button>
     </div>
     {tab === 'coverage' ? <section className="space-y-3">
-      <h2 className="font-semibold">覆盖率 {total ? Math.round(100 * filled / total) : 0}% <span className="text-sm font-normal">（已登记 {filled} / {total}）</span></h2>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="font-semibold">覆盖率 {total ? Math.round(100 * filled / total) : 0}% <span className="text-sm font-normal">（已登记 {filled} / {total}）</span></h2>
+        <Button variant="ghost" size="sm" className="text-slate-600" disabled={busy} onClick={() => setShowClearDialog(true)}>新学期清空任课</Button>
+      </div>
+      {showClearDialog && <ClearAssignmentsDialog url={url} schoolName={data.school.name}
+        onCancel={() => setShowClearDialog(false)} onCleared={onCleared} />}
       <p className="text-sm text-slate-600">点击任课教师或空缺，可指定、改派或清空该项任课。</p>
       <TimetableGrid data={data} cell={(group, subject, owner) => {
         const key = group.id + '/' + subject.id
@@ -138,6 +159,9 @@ export function ManagementPanel({ url, data, reload }: { url: string, data: Mana
     </section> : <section className="space-y-3">
       <div className="flex flex-wrap gap-2">
         <Input aria-label="搜索教师" placeholder="按姓名或手机号搜索" className="max-w-xs" value={search} onChange={e => setSearch(e.target.value)} />
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={assignedOnly} onChange={e => setAssignedOnly(e.target.checked)} />只看本学期有任课的老师
+        </label>
         <Button disabled={busy} onClick={() => setEditor('new')}>新增教师</Button>
       </div>
       {editor && <form key={editor === 'new' ? 'new' : editor.id} onSubmit={saveTeacher} className="flex flex-wrap items-end gap-3 rounded-lg border bg-white p-4">

@@ -1,5 +1,10 @@
 import { Prisma } from '@prisma/client'
 
+export function openPeriodWhere() {
+  const now = new Date()
+  return { isActive: true, startDate: { lte: now }, endDate: { gte: now } }
+}
+
 export const periodInclude = {
   subjects: { include: { subject: true }, orderBy: { subject: { order: 'asc' } } },
   _count: { select: { questions: true, submissions: true } },
