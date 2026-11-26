@@ -3,11 +3,13 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
+import { stageGrades } from '@/lib/classes'
 import { X } from 'lucide-react'
 
 interface SchoolFormData {
   name: string
   code: string
+  stage: keyof typeof stageGrades
   grades: string      // 逗号分隔，如 "高一,高二,高三"
   classCount: number
 }
@@ -19,27 +21,14 @@ interface SchoolFormProps {
   onSuccess: () => void
 }
 
-const SCHOOL_TYPES = {
-  primary: { label: '小学', grades: '一年级,二年级,三年级,四年级,五年级,六年级' },
-  middle: { label: '初中', grades: '初一,初二,初三' },
-  high: { label: '高中', grades: '高一,高二,高三' },
-  custom: { label: '自定义', grades: '' }
-}
+const stages = { PRIMARY: '小学', MIDDLE: '初中', HIGH: '高中' }
 
 export default function SchoolForm({ schoolId, initialData, onClose, onSuccess }: SchoolFormProps) {
   const [formData, setFormData] = useState<SchoolFormData>(
-    initialData || { name: '', code: '', grades: '高一,高二,高三', classCount: 10 }
+    initialData || { name: '', code: '', stage: 'PRIMARY', grades: stageGrades.PRIMARY.join(','), classCount: 3 }
   )
-  const [selectedType, setSelectedType] = useState<string>('custom')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-
-  function handleTypeChange(type: string) {
-    setSelectedType(type)
-    if (type !== 'custom') {
-      setFormData({ ...formData, grades: SCHOOL_TYPES[type as keyof typeof SCHOOL_TYPES].grades })
-    }
-  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -49,20 +38,20 @@ export default function SchoolForm({ schoolId, initialData, onClose, onSuccess }
     if (!formData.code.trim()) { setError('请输入学校代码'); return }
     if (!/^[a-zA-Z0-9]+$/.test(formData.code)) { setError('学校代码只能包含字母和数字'); return }
 
-    const gradesArray = formData.grades.split(',').map(g => g.trim()).filter(Boolean)
+    const gradesArray = formData.grades.split(/[,，]/).map(g => g.trim()).filter(Boolean)
     if (gradesArray.length === 0) { setError('请至少输入一个年级'); return }
     if (formData.classCount < 1) { setError('班级数量至少为 1'); return }
 
     setLoading(true)
     try {
-      const token = localStorage.getItem('token')
+
       const url = schoolId ? `/api/admin/schools/${schoolId}` : '/api/admin/schools'
       const method = schoolId ? 'PUT' : 'POST'
 
       const res = await fetch(url, {
         method,
-        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: formData.name, code: formData.code, grades: gradesArray, classCount: formData.classCount })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...formData, grades: gradesArray })
       })
 
       if (!res.ok) {
@@ -72,8 +61,8 @@ export default function SchoolForm({ schoolId, initialData, onClose, onSuccess }
 
       onSuccess()
       onClose()
-    } catch (err: any) {
-      setError(err.message || '保存失败')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '保存失败')
     } finally {
       setLoading(false)
     }
@@ -121,11 +110,14 @@ export default function SchoolForm({ schoolId, initialData, onClose, onSuccess }
             <Label htmlFor="schoolType">学段类型</Label>
             <select
               id="schoolType"
-              value={selectedType}
-              onChange={(e) => handleTypeChange(e.target.value)}
+              value={formData.stage}
+              onChange={e => {
+                const stage = e.target.value as keyof typeof stages
+                setFormData({ ...formData, stage, grades: stageGrades[stage].join(',') })
+              }}
               className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             >
-              {Object.entries(SCHOOL_TYPES).map(([key, { label }]) => (
+              {Object.entries(stages).map(([key, label]) => (
                 <option key={key} value={key}>{label}</option>
               ))}
             </select>

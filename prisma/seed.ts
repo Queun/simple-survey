@@ -1,130 +1,81 @@
-import { PrismaClient } from '../lib/generated/prisma'
+import 'dotenv/config'
+import { Prisma, PrismaClient } from '@prisma/client'
 import bcrypt from 'bcryptjs'
+import { makeClasses, stageGrades } from '../lib/classes'
 
-const prisma = new PrismaClient()
+const db = new PrismaClient()
+const password = 'SchoolDemo2026'
 
-async function main() {
-  console.log('开始创建测试数据...')
-
-  // 清空现有数据（开发环境）
-  await prisma.answer.deleteMany()
-  await prisma.submission.deleteMany()
-  await prisma.question.deleteMany()
-  await prisma.period.deleteMany()
-  await prisma.user.deleteMany()
-  await prisma.school.deleteMany()
-
-  // 创建3所测试学校
-  console.log('创建学校...')
-  const schools = await Promise.all([
-    prisma.school.create({ data: { name: '第一中学', code: 'S001' } }),
-    prisma.school.create({ data: { name: '实验中学', code: 'S002' } }),
-    prisma.school.create({ data: { name: '育才中学', code: 'S003' } }),
-  ])
-  console.log(`✓ 创建了 ${schools.length} 所学校`)
-
-  // 创建管理员
-  console.log('创建管理员...')
-  await prisma.user.create({
-    data: {
-      username: 'admin',
-      password: await bcrypt.hash('admin123', 10),
-      role: 'ADMIN',
-    },
-  })
-  console.log('✓ 管理员账号: admin / admin123')
-
-  // 创建3个校长
-  console.log('创建校长账号...')
-  for (let i = 0; i < 3; i++) {
-    await prisma.user.create({
-      data: {
-        username: `principal${i + 1}`,
-        password: await bcrypt.hash('principal123', 10),
-        role: 'PRINCIPAL',
-        schoolId: schools[i].id,
-      },
-    })
+async function seedSubmissions(tx: Prisma.TransactionClient, periodId: number, questions: { id: number }[], scale: number[]) {
+  const classes = await tx.schoolClass.findMany({ include: { assignments: true } })
+  for (const group of classes) {
+    if (!group.assignments.length) continue
+    const count = 4 + group.id % 5
+    for (let i = 0; i < count; i++) {
+      const answers = group.assignments.flatMap(slot => questions.map(q => {
+        const center = (slot.teacherId + group.id + q.id) % scale.length
+        const variation = Math.floor(Math.random() * 3) - 1
+        const index = Math.max(0, Math.min(scale.length - 1, center + variation))
+        return { teacherId: slot.teacherId, subjectId: slot.subjectId, questionId: q.id,
+          score: scale[index], maxScore: scale[scale.length - 1] }
+      }))
+      await tx.submission.create({ data: { periodId, schoolId: group.schoolId, classId: group.id,
+        answers: { createMany: { data: answers } } } })
+    }
   }
-  console.log('✓ 校长账号: principal1/principal2/principal3 / principal123')
-
-  // 创建测试调研期
-  console.log('创建调研期...')
-  const period = await prisma.period.create({
-    data: {
-      name: '2024秋季测评',
-      startDate: new Date('2024-09-01'),
-      endDate: new Date('2024-12-31'),
-      isActive: true,
-      subjects: JSON.stringify(['数学', '英语', '物理', '化学']),
-    },
-  })
-  console.log(`✓ 创建调研期: ${period.name}`)
-
-  // 创建测试题目
-  console.log('创建问卷题目...')
-  const questions = [
-    {
-      content: '教师教学态度认真负责',
-      options: [
-        { label: '非常同意', score: 5 },
-        { label: '同意', score: 4 },
-        { label: '一般', score: 3 },
-        { label: '不同意', score: 2 },
-        { label: '非常不同意', score: 1 },
-      ]
-    },
-    {
-      content: '教学内容清晰易懂',
-      options: [
-        { label: '非常同意', score: 5 },
-        { label: '同意', score: 4 },
-        { label: '一般', score: 3 },
-        { label: '不同意', score: 2 },
-        { label: '非常不同意', score: 1 },
-      ]
-    },
-    {
-      content: '课堂氛围活跃',
-      options: [
-        { label: '非常同意', score: 5 },
-        { label: '同意', score: 4 },
-        { label: '一般', score: 3 },
-        { label: '不同意', score: 2 },
-        { label: '非常不同意', score: 1 },
-      ]
-    },
-  ]
-
-  for (let i = 0; i < questions.length; i++) {
-    await prisma.question.create({
-      data: {
-        periodId: period.id,
-        order: i + 1,
-        content: questions[i].content,
-        options: JSON.stringify(questions[i].options),
-      },
-    })
-  }
-  console.log(`✓ 创建了 ${questions.length} 道题目`)
-
-  console.log('\n========================================')
-  console.log('✓ 测试数据创建成功！')
-  console.log('========================================')
-  console.log('管理员登录: admin / admin123')
-  console.log('校长登录: principal1 / principal123')
-  console.log('         principal2 / principal123')
-  console.log('         principal3 / principal123')
-  console.log(`调研期ID: ${period.id}`)
-  console.log(`学生访问: /survey/${period.id}`)
-  console.log('========================================\n')
 }
 
-main()
-  .catch((e) => {
-    console.error('❌ 错误:', e)
-    process.exit(1)
-  })
-  .finally(async () => {
-    await prisma.$disconnect()
-  })
+async function seed() {
+  const hash = await bcrypt.hash(password, 10)
+  const period = await db.$transaction(async tx => {
+    if (await tx.user.count() || await tx.school.count() || await tx.subject.count() || await tx.period.count()) {
+      throw new Error('演示数据需要空库，请检查 DATABASE_URL')
+    }
+    await tx.user.create({ data: { username: 'admin', role: 'ADMIN', password: hash } })
+    const subjects = []
+    for (const [i, name] of ['语文', '数学', '英语', '科学', '道德与法治'].entries()) {
+      subjects.push(await tx.subject.create({ data: { name, order: i + 1 } }))
+    }
+    for (const [index, stage] of (['PRIMARY', 'MIDDLE'] as const).entries()) {
+      const school = await tx.school.create({
+        data: {
+          name: ['晨光小学', '明德初中'][index], code: ['CGXX', 'MDCZ'][index], stage,
+          classes: { create: makeClasses(stageGrades[stage], index === 0 ? 3 : 2) },
+          principals: { create: { username: `principal${index + 1}`, role: 'PRINCIPAL', password: hash } },
+        },
+        include: { classes: { orderBy: [{ gradeOrder: 'asc' }, { order: 'asc' }] } },
+      })
+      const teachers = []
+      for (let i = 0; i < 12; i++) {
+        teachers.push(await tx.teacher.create({ data: {
+          schoolId: school.id, name: `示例教师${i + 1}`, phone: `199000${index}${String(i + 1).padStart(4, '0')}`, source: 'IMPORT',
+        } }))
+      }
+      for (const [i, group] of school.classes.entries()) {
+        for (const [j, subject] of subjects.entries()) {
+          const slot = i * subjects.length + j
+          if (slot % 17 === 0) continue
+          await tx.teachingAssignment.create({ data: {
+            classId: group.id, subjectId: subject.id, teacherId: teachers[slot % teachers.length].id,
+          } })
+        }
+      }
+    }
+    const now = Date.now()
+    const options = ['很少', '偶尔', '有时', '经常', '总是'].map((label, i) => ({ label, score: i + 1 }))
+    const created = await tx.period.create({ data: {
+      name: '教学反馈调研', startDate: new Date(now - 86400000), endDate: new Date(now + 30 * 86400000),
+      subjects: { create: subjects.map(s => ({ subjectId: s.id })) },
+      questions: { create: ['老师讲解清楚。', '老师鼓励我提问。', '老师给我练习的机会。', '老师及时反馈作业。', '老师尊重我的想法。']
+        .map((content, i) => ({ order: i + 1, content, options })) },
+    }, include: { questions: { select: { id: true } } } })
+    if (process.env.SEED_SUBMISSIONS === '1') {
+      await seedSubmissions(tx, created.id, created.questions, options.map(o => o.score))
+    }
+    return created
+  }, { timeout: 30000 })
+  console.log(`管理员 admin；校长 principal1、principal2。演示密码 ${password}`)
+  console.log(`学生问卷 http://localhost:3000/survey/${period.id}`)
+}
+
+seed().catch(error => { console.error(error); process.exitCode = 1 }).finally(() => db.$disconnect())

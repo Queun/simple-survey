@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import AdminLayout from '@/components/AdminLayout'
 import PeriodForm from '@/components/PeriodForm'
 import { LinkGeneratorModal } from '@/components/LinkGeneratorModal'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -14,18 +13,11 @@ interface Period {
   startDate: string
   endDate: string
   isActive: boolean
-  subjects: string[]
+  subjects: { id: number, name: string }[]
   _count?: {
     questions: number
     submissions: number
   }
-}
-
-interface User {
-  id: number
-  username: string
-  role: 'ADMIN' | 'PRINCIPAL'
-  schoolId?: number
 }
 
 export default function PeriodsPage() {
@@ -34,30 +26,17 @@ export default function PeriodsPage() {
   const [error, setError] = useState('')
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showLinkGenerator, setShowLinkGenerator] = useState<number | null>(null)
-  const [user, setUser] = useState<User | null>(null)
+  const [editing, setEditing] = useState<Period | null>(null)
 
   useEffect(() => {
     fetchPeriods()
 
-    // 加载用户信息
-    const userData = localStorage.getItem('user')
-    if (userData) {
-      try {
-        setUser(JSON.parse(userData))
-      } catch (e) {
-        console.error('Failed to parse user data:', e)
-      }
-    }
   }, [])
 
   async function fetchPeriods() {
     try {
-      const token = localStorage.getItem('token')
-      const res = await fetch('/api/admin/periods', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      })
+
+      const res = await fetch('/api/admin/periods')
 
       if (!res.ok) {
         throw new Error('Failed to fetch periods')
@@ -75,11 +54,11 @@ export default function PeriodsPage() {
 
   async function togglePeriodStatus(periodId: number, currentStatus: boolean) {
     try {
-      const token = localStorage.getItem('token')
+
       const res = await fetch(`/api/admin/periods/${periodId}`, {
         method: 'PATCH',
         headers: {
-          'Authorization': `Bearer ${token}`,
+
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({ isActive: !currentStatus })
@@ -103,12 +82,9 @@ export default function PeriodsPage() {
     }
 
     try {
-      const token = localStorage.getItem('token')
+
       const res = await fetch(`/api/admin/periods/${periodId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+        method: 'DELETE'
       })
 
       const data = await res.json()
@@ -119,14 +95,20 @@ export default function PeriodsPage() {
 
       alert('删除成功')
       fetchPeriods()
-    } catch (err: any) {
+    } catch (err) {
       console.error('Error deleting period:', err)
-      alert(err.message || '删除失败')
+      alert(err instanceof Error ? err.message : '删除失败')
     }
+  }
+
+  // 日期输入框要的是北京时间的 YYYY-MM-DD
+  function schoolDate(dateString: string) {
+    return new Date(dateString).toLocaleDateString('sv-SE', { timeZone: 'Asia/Shanghai' })
   }
 
   function formatDate(dateString: string) {
     return new Date(dateString).toLocaleDateString('zh-CN', {
+      timeZone: 'Asia/Shanghai',
       year: 'numeric',
       month: '2-digit',
       day: '2-digit'
@@ -134,7 +116,7 @@ export default function PeriodsPage() {
   }
 
   return (
-    <AdminLayout>
+    <>
       <div className="space-y-6">
         {/* 页面标题和操作 */}
         <div className="flex items-center justify-between">
@@ -212,7 +194,7 @@ export default function PeriodsPage() {
                         variant="outline"
                         size="sm"
                         onClick={() => {
-                          window.location.href = `/admin/periods/${period.id}`
+                          setEditing(period)
                         }}
                         className="flex items-center space-x-2"
                       >
@@ -236,12 +218,12 @@ export default function PeriodsPage() {
                     <div>
                       <h4 className="text-sm font-medium text-gray-700 mb-2">学科列表</h4>
                       <div className="flex flex-wrap gap-2">
-                        {period.subjects.map((subject, idx) => (
+                        {period.subjects.map((subject) => (
                           <span
-                            key={idx}
+                            key={subject.id}
                             className="px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-sm"
                           >
-                            {subject}
+                            {subject.name}
                           </span>
                         ))}
                       </div>
@@ -281,9 +263,14 @@ export default function PeriodsPage() {
         )}
 
         {/* 创建期数模态框 */}
-        {showCreateModal && (
+        {(showCreateModal || editing) && (
           <PeriodForm
-            onClose={() => setShowCreateModal(false)}
+            periodId={editing?.id}
+            initialData={editing ? {
+              name: editing.name, isActive: editing.isActive, startDate: schoolDate(editing.startDate),
+              endDate: schoolDate(editing.endDate), subjectIds: editing.subjects.map(s => s.id),
+            } : undefined}
+            onClose={() => { setEditing(null); setShowCreateModal(false) }}
             onSuccess={() => {
               fetchPeriods()
               setShowCreateModal(false)
@@ -292,15 +279,13 @@ export default function PeriodsPage() {
         )}
 
         {/* 链接生成器模态框 */}
-        {showLinkGenerator !== null && user && (
+        {showLinkGenerator !== null && (
           <LinkGeneratorModal
             periodId={showLinkGenerator}
-            userRole={user.role}
-            userSchoolId={user.schoolId}
             onClose={() => setShowLinkGenerator(null)}
           />
         )}
       </div>
-    </AdminLayout>
+    </>
   )
 }

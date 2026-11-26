@@ -1,8 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import AdminLayout from '@/components/AdminLayout'
 import QuestionForm from '@/components/QuestionForm'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -38,19 +37,10 @@ export default function QuestionsPage() {
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null)
   const [templateQuestion, setTemplateQuestion] = useState<Question | null>(null)
 
-  useEffect(() => {
-    fetchPeriod()
-    fetchQuestions()
-  }, [])
-
-  async function fetchPeriod() {
+  const fetchPeriod = useCallback(async () => {
     try {
-      const token = localStorage.getItem('token')
-      const res = await fetch(`/api/admin/periods/${periodId}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      })
+
+      const res = await fetch(`/api/admin/periods/${periodId}`)
 
       if (!res.ok) {
         throw new Error('Failed to fetch period')
@@ -61,16 +51,12 @@ export default function QuestionsPage() {
     } catch (err) {
       console.error('Error fetching period:', err)
     }
-  }
+  }, [periodId])
 
-  async function fetchQuestions() {
+  const fetchQuestions = useCallback(async () => {
     try {
-      const token = localStorage.getItem('token')
-      const res = await fetch(`/api/admin/periods/${periodId}/questions`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      })
+
+      const res = await fetch(`/api/admin/periods/${periodId}/questions`)
 
       if (!res.ok) {
         throw new Error('Failed to fetch questions')
@@ -84,7 +70,12 @@ export default function QuestionsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [periodId])
+
+  useEffect(() => {
+    void fetchPeriod()
+    void fetchQuestions()
+  }, [fetchPeriod, fetchQuestions])
 
   async function handleDeleteQuestion(questionId: number) {
     if (!confirm('确定要删除这个题目吗？删除后无法恢复。')) {
@@ -92,12 +83,9 @@ export default function QuestionsPage() {
     }
 
     try {
-      const token = localStorage.getItem('token')
+
       const res = await fetch(`/api/admin/periods/${periodId}/questions/${questionId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+        method: 'DELETE'
       })
 
       if (!res.ok) {
@@ -137,17 +125,18 @@ export default function QuestionsPage() {
 
   async function updateQuestionsOrder(newQuestions: Question[]) {
     try {
-      const token = localStorage.getItem('token')
+
       const questionIds = newQuestions.map(q => q.id)
 
-      await fetch(`/api/admin/periods/${periodId}/questions/reorder`, {
+      const res = await fetch(`/api/admin/periods/${periodId}/questions/reorder`, {
         method: 'PATCH',
         headers: {
-          'Authorization': `Bearer ${token}`,
+
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({ questionIds })
       })
+      if (!res.ok) throw new Error((await res.json()).error)
     } catch (err) {
       console.error('Error reordering questions:', err)
       alert('排序失败')
@@ -156,7 +145,7 @@ export default function QuestionsPage() {
   }
 
   return (
-    <AdminLayout>
+    <>
       <div className="space-y-6">
         {/* 页面标题和操作 */}
         <div className="flex items-center justify-between">
@@ -336,6 +325,6 @@ export default function QuestionsPage() {
           />
         )}
       </div>
-    </AdminLayout>
+    </>
   )
 }

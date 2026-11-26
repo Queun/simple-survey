@@ -31,7 +31,8 @@ yarn-error.log*
 .pnpm-debug.log*
 
 # env files (can opt-in for committing if needed)
-# .env*
+.env*
+!.env.example
 
 # vercel
 .vercel
@@ -40,10 +41,13 @@ yarn-error.log*
 *.tsbuildinfo
 # next-env.d.ts
 
-# /lib/generated/prisma
+/lib/generated/prisma
 
 # prisma database (production data, do not commit)
 *.db
 *.db-journal
 *.db-wal
 *.db-shm
+
+# agent handoffs
+.codex/

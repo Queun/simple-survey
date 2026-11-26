@@ -11,56 +11,41 @@ interface School {
   id: number
   name: string
   code: string
-  grades: string[]
-  classCount: number
+  classes: { id: number, grade: string, name: string }[]
 }
 
 interface LinkGeneratorModalProps {
   periodId: number
-  userRole: 'ADMIN' | 'PRINCIPAL'
-  userSchoolId?: number
   onClose: () => void
+  /** 校长端传入本校 ID：固定为本校，不显示学校选择 */
+  schoolId?: number
 }
 
-export function LinkGeneratorModal({ periodId, userRole, userSchoolId, onClose }: LinkGeneratorModalProps) {
+export function LinkGeneratorModal({ periodId, onClose, schoolId }: LinkGeneratorModalProps) {
   const [schools, setSchools] = useState<School[]>([])
-  const [selectedSchool, setSelectedSchool] = useState<number | null>(null)
+  const [selectedSchool, setSelectedSchool] = useState<number | null>(schoolId ?? null)
   const [selectedGrade, setSelectedGrade] = useState('')
   const [selectedClass, setSelectedClass] = useState('')
-  const [generatedUrl, setGeneratedUrl] = useState('')
+  const [origin, setOrigin] = useState('')
   const [copied, setCopied] = useState(false)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     fetchSchools()
   }, [])
-
-  // 校长自动选中自己的学校
-  useEffect(() => {
-    if (userRole === 'PRINCIPAL' && userSchoolId) {
-      setSelectedSchool(userSchoolId)
-    }
-  }, [userRole, userSchoolId])
-
-  // 动态生成URL
-  useEffect(() => {
-    const baseUrl = `${window.location.origin}/survey/${periodId}`
-    const params = new URLSearchParams()
-
-    if (selectedSchool) params.append('school', selectedSchool.toString())
-    if (selectedGrade) params.append('grade', selectedGrade)
-    if (selectedClass) params.append('class', selectedClass)
-
-    const url = params.toString() ? `${baseUrl}?${params}` : baseUrl
-    setGeneratedUrl(url)
-  }, [periodId, selectedSchool, selectedGrade, selectedClass])
+  const params = new URLSearchParams()
+  if (selectedSchool) params.set('school', String(selectedSchool))
+  if (selectedGrade) params.set('grade', selectedGrade)
+  if (selectedClass) params.set('class', selectedClass)
+  const generatedUrl = `${origin}/survey/${periodId}${params.size ? '?' + params : ''}`
 
   async function fetchSchools() {
     try {
       const res = await fetch('/api/schools')
       if (!res.ok) throw new Error('Failed to fetch schools')
       const data = await res.json()
-      setSchools(data)
+      setSchools(schoolId ? data.filter((school: School) => school.id === schoolId) : data)
+      setOrigin(window.location.origin)
     } catch (err) {
       console.error('Error fetching schools:', err)
     } finally {
@@ -77,22 +62,14 @@ export function LinkGeneratorModal({ periodId, userRole, userSchoolId, onClose }
       await navigator.clipboard.writeText(generatedUrl)
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
-    } catch (err) {
+    } catch {
       alert('复制失败，请手动复制')
     }
   }
 
-  const filteredSchools = userRole === 'PRINCIPAL' && userSchoolId
-    ? schools.filter(s => s.id === userSchoolId)
-    : schools
-
-  const isPrincipal = userRole === 'PRINCIPAL'
-
   const currentSchool = schools.find(s => s.id === selectedSchool)
-  const grades = currentSchool?.grades ?? []
-  const classes = currentSchool
-    ? Array.from({ length: currentSchool.classCount }, (_, i) => `${i + 1}班`)
-    : []
+  const grades = [...new Set(currentSchool?.classes.map(c => c.grade))]
+  const classes = currentSchool?.classes.filter(c => c.grade === selectedGrade) ?? []
 
   function handleSchoolChange(value: string) {
     setSelectedSchool(value ? parseInt(value) : null)
@@ -125,25 +102,21 @@ export function LinkGeneratorModal({ periodId, userRole, userSchoolId, onClose }
           ) : (
             <>
               {/* 学校选择 */}
-              <div>
-                <Label htmlFor="school">学校 {!isPrincipal && '(可选)'}</Label>
+              <div hidden={!!schoolId}>
+                <Label htmlFor="school">学校 (可选)</Label>
                 <select
                   id="school"
                   className="w-full mt-1 border border-gray-300 rounded-md px-3 py-2"
                   value={selectedSchool || ''}
                   onChange={(e) => handleSchoolChange(e.target.value)}
-                  disabled={isPrincipal}
                 >
                   <option value="">-- 不预填学校 --</option>
-                  {filteredSchools.map(school => (
+                  {schools.map(school => (
                     <option key={school.id} value={school.id}>
                       {school.name} ({school.code})
                     </option>
                   ))}
                 </select>
-                {isPrincipal && (
-                  <p className="text-xs text-gray-500 mt-1">校长只能为自己的学校生成链接</p>
-                )}
               </div>
 
               {/* 年级选择 */}
@@ -175,7 +148,7 @@ export function LinkGeneratorModal({ periodId, userRole, userSchoolId, onClose }
                 >
                   <option value="">-- 不预填班级 --</option>
                   {classes.map(cls => (
-                    <option key={cls} value={cls}>{cls}</option>
+                    <option key={cls.id} value={cls.id}>{cls.name}</option>
                   ))}
                 </select>
               </div>
@@ -194,7 +167,7 @@ export function LinkGeneratorModal({ periodId, userRole, userSchoolId, onClose }
                   </Button>
                 </div>
                 <p className="text-xs text-gray-500 mt-2">
-                  点击"复制"按钮将链接复制到剪贴板，然后分享给学生
+                  点击“复制”按钮将链接复制到剪贴板，然后分享给学生
                 </p>
               </div>
 

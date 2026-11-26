@@ -97,7 +97,7 @@ export default function QuestionForm({ periodId, questionId, initialData, onClos
     setLoading(true)
 
     try {
-      const token = localStorage.getItem('token')
+
       const url = questionId
         ? `/api/admin/periods/${periodId}/questions/${questionId}`
         : `/api/admin/periods/${periodId}/questions`
@@ -106,7 +106,7 @@ export default function QuestionForm({ periodId, questionId, initialData, onClos
       const res = await fetch(url, {
         method,
         headers: {
-          'Authorization': `Bearer ${token}`,
+
           'Content-Type': 'application/json'
         },
         body: JSON.stringify(formData)
@@ -119,9 +119,9 @@ export default function QuestionForm({ periodId, questionId, initialData, onClos
 
       onSuccess()
       onClose()
-    } catch (err: any) {
+    } catch (err) {
       console.error('Error saving question:', err)
-      setError(err.message || '保存失败')
+      setError(err instanceof Error ? err.message : '保存失败')
     } finally {
       setLoading(false)
     }
@@ -189,6 +189,8 @@ export default function QuestionForm({ periodId, questionId, initialData, onClos
                   <div className="w-24">
                     <input
                       type="number"
+                      min={0}
+                      step={1}
                       placeholder="分数"
                       value={option.score}
                       onChange={(e) => handleOptionChange(idx, 'score', e.target.value)}
