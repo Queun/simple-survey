@@ -5,7 +5,7 @@ import { timetable, withSchool } from '@/lib/teacher-management'
 
 export const GET = withSchool(async (_, schoolId) => {
   const data = await prisma.$transaction(async tx => {
-    const school = await tx.school.findUniqueOrThrow({ where: { id: schoolId }, select: { id: true, name: true, code: true } })
+    const school = await tx.school.findUniqueOrThrow({ where: { id: schoolId }, select: { id: true, name: true, code: true, registrationCode: true } })
     const teachers = await tx.teacher.findMany({ where: { schoolId }, orderBy: [{ name: 'asc' }, { id: 'asc' }], select: {
       id: true, name: true, phone: true, source: true, _count: { select: { assignments: true } },
     } })

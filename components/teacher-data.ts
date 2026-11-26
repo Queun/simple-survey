@@ -4,7 +4,7 @@ export type Timetable = {
   subjects: { id: number, name: string }[]
   classes: { id: number, grade: string, name: string, assignments: { subjectId: number, teacher: { id: number, name: string } }[] }[]
 }
-export type ManagementData = Timetable & { school: School, teachers: Teacher[] }
+export type ManagementData = Timetable & { school: School & { registrationCode: string }, teachers: Teacher[] }
 export type RegistrationData = Timetable & { teacher: { id: number, name: string, school: { name: string } } }
 
 export async function readJson<T>(url: string, options?: RequestInit): Promise<T> {

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { gradeCounts } from '@/lib/classes'
 import SchoolForm from '@/components/SchoolForm'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -188,7 +189,7 @@ export default function SchoolsPage() {
                     <Link href={`/admin/schools/${school.id}/teachers`}>教师管理</Link>
                   </Button>
                   <details className="mb-3 text-sm">
-                    <summary className="cursor-pointer">{{ PRIMARY: '小学', MIDDLE: '初中', HIGH: '高中' }[school.stage]} · {school.classes.length} 个班级</summary>
+                    <summary className="cursor-pointer">{{ PRIMARY: '小学', MIDDLE: '初中', HIGH: '高中' }[school.stage]} · {school.classes.length} 个班级 · {gradeCounts(school.classes).map(g => `${g.name} ${g.classCount} 班`).join('、')}</summary>
                     {[...new Set(school.classes.map(c => c.grade))].map(grade => (
                       <p key={grade} className="mt-2">{grade}　{school.classes.filter(c => c.grade === grade).map(c => c.name).join('、')}</p>
                     ))}
@@ -228,8 +229,7 @@ export default function SchoolsPage() {
               name: editingSchool.name,
               code: editingSchool.code,
               stage: editingSchool.stage,
-              grades: [...new Set(editingSchool.classes.map(c => c.grade))].join(','),
-              classCount: editingSchool.classes.filter(c => c.grade === editingSchool.classes[0]?.grade).length || 1
+              grades: gradeCounts(editingSchool.classes),
             }}
             onClose={() => setEditingSchool(null)}
             onSuccess={() => {

@@ -9,6 +9,7 @@ import * as own from '@/app/api/teacher/classes/route'
 import { GET as adminSchools } from '@/app/api/admin/schools/route'
 import { GET as principalPeriods } from '@/app/api/principal/periods/route'
 import * as management from '@/app/api/management/schools/[schoolId]/teachers/route'
+import { POST as rotateCode } from '@/app/api/management/schools/[schoolId]/teachers/registration-code/route'
 import * as teacherItem from '@/app/api/management/schools/[schoolId]/teachers/[teacherId]/route'
 import { PUT as assign } from '@/app/api/management/schools/[schoolId]/teachers/assignments/route'
 import * as workbook from '@/app/api/management/schools/[schoolId]/teachers/workbook/route'
@@ -29,7 +30,7 @@ function cookie(res: Response) {
 }
 
 describe('S3 种子学校教师采集', () => {
-  let principal: string, admin: string, schoolId: number, otherSchool: number
+  let principal: string, admin: string, schoolId: number, otherSchool: number, otherCode: string
   const account = { name: '自助登记', phone: '13800000001' }
   const seedTeacher = { name: '示例教师1', phone: '19900000001' }
   const list = async () => {
@@ -40,20 +41,23 @@ describe('S3 种子学校教师采集', () => {
   beforeAll(async () => {
     execFileSync(process.execPath, ['--import', 'tsx', 'prisma/seed.ts'], { stdio: 'pipe' })
     schoolId = (await prisma.school.findUniqueOrThrow({ where: { code: 'CGXX' } })).id
-    otherSchool = (await prisma.school.findUniqueOrThrow({ where: { code: 'MDCZ' } })).id
+    const other = await prisma.school.findUniqueOrThrow({ where: { code: 'MDCZ' } })
+    otherSchool = other.id
+    otherCode = other.registrationCode
     const signIn = (username: string) => backendLogin(req('POST', { username, password: 'SchoolDemo2026' }))
     principal = cookie(await signIn('principal1'))
     admin = cookie(await signIn('admin'))
   })
 
   it('注册、重复手机号、登录、取消、并发登记冲突、跨角色访问和失效会话', async () => {
-    const registration = await register(req('POST', { ...account, schoolId }))
+    const code = (await list()).school.registrationCode
+    const registration = await register(req('POST', { ...account, schoolId, code }))
     expect(registration.status).toBe(201)
     cookie(registration)
-    const duplicate = await register(req('POST', { ...account, schoolId: otherSchool }))
+    const duplicate = await register(req('POST', { ...account, schoolId: otherSchool, code: otherCode }))
     expect(duplicate.status).toBe(409)
     expect(await duplicate.json()).toEqual({ error: '该手机号已登记，请直接登录' })
-    expect((await register(req('POST', { ...account, phone: '123', schoolId }))).status).toBe(400)
+    expect((await register(req('POST', { ...account, phone: '123', schoolId, code }))).status).toBe(400)
     const teacher = await prisma.teacher.findUniqueOrThrow({ where: { phone: account.phone } })
     expect(teacher).toMatchObject({ schoolId, source: 'SELF' })
     const token = cookie(await login(req('POST', account)))
@@ -84,6 +88,45 @@ describe('S3 种子学校教师采集', () => {
     expect((await save(token, [{ ...slot, classId: foreign.id }], [])).status).toBe(403)
     await prisma.teacher.delete({ where: { id: teacher.id } })
     expect((await own.GET(req('GET', undefined, token), ctx())).status).toBe(401)
+  })
+
+  it('缺失或错误口令拒绝建档；同一 IP 的错误累计锁定，有效口令只能从其他 IP 登记', async () => {
+    const { registrationCode } = (await list()).school
+    const input = { name: '口令测试', phone: '13800000101', schoolId }
+    const attempt = (code?: string, ip = 'registration-test') => register(req('POST', { ...input, code }, '', ip))
+    for (const code of [undefined, '000000', 'invalid']) {
+      const res = await attempt(code, 'validation-test')
+      expect(res.status).toBe(400)
+      expect(await res.json()).toEqual({ error: '登记口令不正确，请向学校教务确认' })
+    }
+    for (let i = 1; i <= 30; i++) expect((await attempt('000000')).status).toBe(i === 30 ? 429 : 400)
+    expect((await attempt(registrationCode)).status).toBe(429)
+    expect(await prisma.teacher.count({ where: { phone: input.phone } })).toBe(0)
+    expect((await attempt(registrationCode, 'another-registration-ip')).status).toBe(201)
+    await prisma.teacher.delete({ where: { phone: input.phone } })
+  })
+
+  it('口令限本校管理，更换立即生效，已登记教师仍可登录', async () => {
+    const before = (await list()).school.registrationCode
+    expect(before).toMatch(/^\d{6}$/)
+    const rotate = (who: string, id: number) => rotateCode(req('POST', undefined, who), ctx(id))
+    expect((await management.GET(req(), ctx(schoolId))).status).toBe(401)
+    expect((await rotate('', schoolId)).status).toBe(401)
+    expect((await management.GET(req('GET', undefined, principal), ctx(otherSchool))).status).toBe(403)
+    expect((await rotate(principal, otherSchool)).status).toBe(403)
+    expect((await prisma.school.findUniqueOrThrow({ where: { id: otherSchool } })).registrationCode).toBe(otherCode)
+    const res = await rotate(principal, schoolId)
+    expect(res.status).toBe(200)
+    const { registrationCode } = await res.json()
+    expect(registrationCode).toMatch(/^\d{6}$/)
+    expect(registrationCode).not.toBe(before)
+    expect((await list()).school.registrationCode).toBe(registrationCode)
+    const input = { name: '换码测试', phone: '13800000102', schoolId }
+    expect((await register(req('POST', { ...input, code: before }))).status).toBe(400)
+    expect((await register(req('POST', { ...input, code: registrationCode }))).status).toBe(201)
+    expect((await rotate(admin, schoolId)).status).toBe(200)
+    expect((await login(req('POST', { name: input.name, phone: input.phone }))).status).toBe(200)
+    await prisma.teacher.delete({ where: { phone: input.phone } })
   })
 
   it('未知手机号和姓名不符的提示相同；按手机号或 IP 独立锁定 15 分钟', async () => {
@@ -156,11 +199,11 @@ describe('S3 种子学校教师采集', () => {
     assignments: await prisma.teachingAssignment.findMany({ where: { class: { schoolId } }, orderBy: { id: 'asc' } }),
   })
 
-  it('按模板导入，逐行列全错误且整体不写；修正后覆盖数从 84/90 到 86/90，复用已有教师', async () => {
+  it('按模板导入，逐行列全错误且整体不写；修正后覆盖数从 94/100 到 96/100，复用已有教师', async () => {
     const before = await snapshot()
     const base = await list()
-    expect(base.classes.length * base.subjects.length).toBe(90)
-    expect(before.assignments.length).toBe(84)
+    expect(base.classes.length * base.subjects.length).toBe(100)
+    expect(before.assignments.length).toBe(94)
     const book = await download('template')
     const sheet = book.worksheets[0]
     expect(sheet.getRow(1).values).toEqual([, '姓名', '手机号', '年级', '班级', '学科'])
@@ -172,8 +215,8 @@ describe('S3 种子学校教师采集', () => {
       ['坏号码', '12345'],
       ['示例教师1', '19900010001'],
       ['新老师', '13800000007', '一年级', '1班', '数学'],
-      ['文件重复', '13800000008', '二年级', '1班', '英语'],
-      ['文件重复', '13800000008', '二年级', '1班', '英语'],
+      ['文件重复', '13800000008', '一年级', '4班', '英语'],
+      ['文件重复', '13800000008', '一年级', '4班', '英语'],
       ['不同名', seedTeacher.phone],
       ['缺列', '13800000998', '一年级'],
     ])
@@ -188,16 +231,16 @@ describe('S3 种子学校教师采集', () => {
     }
     expect(await snapshot()).toEqual(before)
     const fixed = await download('template')
-    fixed.worksheets[0].addRows([good, [seedTeacher.name, Number(seedTeacher.phone), '二年级', '1班', '英语'], ['待分配', '13800000009']])
+    fixed.worksheets[0].addRows([good, [seedTeacher.name, Number(seedTeacher.phone), '一年级', '4班', '英语'], ['待分配', '13800000009']])
     const res = await upload(fixed)
     expect(res.status).toBe(200)
     expect(await res.json()).toEqual({ rows: 3, createdTeachers: 2, addedAssignments: 2 })
     const after = await list()
-    expect(after.classes.reduce((n, c) => n + c.assignments.length, 0)).toBe(86)
+    expect(after.classes.reduce((n, c) => n + c.assignments.length, 0)).toBe(96)
     expect(after.teachers.find(t => t.phone === seedTeacher.phone)?.id).toBe(base.teachers.find(t => t.phone === seedTeacher.phone)?.id)
     const exported = await download('export')
     const state = await snapshot()
-    expect(exported.worksheets[0].rowCount).toBe(1 + 86 + 1)
+    expect(exported.worksheets[0].rowCount).toBe(1 + 96 + 1)
     expect((await upload(exported)).status).toBe(200)
     expect(await snapshot()).toEqual(state)
     // Reconstruct an empty timetable from the exported workbook as well.

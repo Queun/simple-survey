@@ -3,15 +3,14 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
-import { stageGrades } from '@/lib/classes'
+import { type GradeConfig, stageGrades } from '@/lib/classes'
 import { X } from 'lucide-react'
 
 interface SchoolFormData {
   name: string
   code: string
   stage: keyof typeof stageGrades
-  grades: string      // 逗号分隔，如 "高一,高二,高三"
-  classCount: number
+  grades: GradeConfig[]
 }
 
 interface SchoolFormProps {
@@ -24,9 +23,16 @@ interface SchoolFormProps {
 const stages = { PRIMARY: '小学', MIDDLE: '初中', HIGH: '高中' }
 
 export default function SchoolForm({ schoolId, initialData, onClose, onSuccess }: SchoolFormProps) {
-  const [formData, setFormData] = useState<SchoolFormData>(
-    initialData || { name: '', code: '', stage: 'PRIMARY', grades: stageGrades.PRIMARY.join(','), classCount: 3 }
+  const [formData, setFormData] = useState({
+    name: initialData?.name ?? '', code: initialData?.code ?? '', stage: initialData?.stage ?? 'PRIMARY',
+  })
+  const [gradeText, setGradeText] = useState(
+    (initialData?.grades.map(g => g.name) ?? stageGrades.PRIMARY).join(',')
   )
+  const [defaultCount, setDefaultCount] = useState(String(initialData?.grades[0]?.classCount ?? 3))
+  const [counts, setCounts] = useState(() => new Map(initialData?.grades.map(g => [g.name, String(g.classCount)])))
+  const names = gradeText.split(/[,，]/).map(name => name.trim()).filter(Boolean)
+  const gradeNames = [...new Set(names)]
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -38,9 +44,9 @@ export default function SchoolForm({ schoolId, initialData, onClose, onSuccess }
     if (!formData.code.trim()) { setError('请输入学校代码'); return }
     if (!/^[a-zA-Z0-9]+$/.test(formData.code)) { setError('学校代码只能包含字母和数字'); return }
 
-    const gradesArray = formData.grades.split(/[,，]/).map(g => g.trim()).filter(Boolean)
-    if (gradesArray.length === 0) { setError('请至少输入一个年级'); return }
-    if (formData.classCount < 1) { setError('班级数量至少为 1'); return }
+    if (!names.length) { setError('请至少输入一个年级'); return }
+    if (gradeNames.length !== names.length) { setError('年级名称不能重复'); return }
+    const grades = gradeNames.map(name => ({ name, classCount: Number(counts.get(name) ?? defaultCount) }))
 
     setLoading(true)
     try {
@@ -51,7 +57,7 @@ export default function SchoolForm({ schoolId, initialData, onClose, onSuccess }
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...formData, grades: gradesArray })
+        body: JSON.stringify({ ...formData, grades })
       })
 
       if (!res.ok) {
@@ -70,7 +76,7 @@ export default function SchoolForm({ schoolId, initialData, onClose, onSuccess }
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg max-w-lg w-full">
+      <div className="bg-white rounded-lg max-w-lg w-full max-h-full overflow-y-auto">
         <div className="border-b px-6 py-4 flex items-center justify-between">
           <h3 className="text-lg font-bold">{schoolId ? '编辑学校' : '创建学校'}</h3>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
@@ -113,7 +119,9 @@ export default function SchoolForm({ schoolId, initialData, onClose, onSuccess }
               value={formData.stage}
               onChange={e => {
                 const stage = e.target.value as keyof typeof stages
-                setFormData({ ...formData, stage, grades: stageGrades[stage].join(',') })
+                setFormData({ ...formData, stage })
+                setGradeText(stageGrades[stage].join(','))
+                setCounts(new Map())
               }}
               className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             >
@@ -130,8 +138,8 @@ export default function SchoolForm({ schoolId, initialData, onClose, onSuccess }
               id="grades"
               type="text"
               placeholder="例如：高一,高二,高三 或 初一,初二,初三"
-              value={formData.grades}
-              onChange={(e) => setFormData({ ...formData, grades: e.target.value })}
+              value={gradeText}
+              onChange={(e) => setGradeText(e.target.value)}
               required
               className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             />
@@ -145,12 +153,21 @@ export default function SchoolForm({ schoolId, initialData, onClose, onSuccess }
               type="number"
               min={1}
               max={50}
-              value={formData.classCount}
-              onChange={(e) => setFormData({ ...formData, classCount: parseInt(e.target.value) || 1 })}
+              value={defaultCount}
+              onChange={(e) => { setDefaultCount(e.target.value); setCounts(new Map()) }}
               required
               className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             />
-            <p className="text-xs text-gray-500">所有年级共用同一个班级数量上限</p>
+            <p className="text-xs text-gray-500">修改此数会同步到所有年级，也可在下方单独调整。</p>
+          </div>
+
+          <div className="space-y-2">
+            {gradeNames.map(grade => <label key={grade} className="flex items-center justify-between gap-3 text-sm">
+              {grade}班级数
+              <input type="number" min={1} max={50} required className="h-10 w-24 rounded-md border px-3"
+                value={counts.get(grade) ?? defaultCount}
+                onChange={e => setCounts(new Map(counts).set(grade, e.target.value))} />
+            </label>)}
           </div>
 
           {error && (

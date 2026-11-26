@@ -35,15 +35,16 @@ model User {
 }
 
 model School {
-  id          Int           @id @default(autoincrement())
-  name        String        @unique
-  code        String        @unique
-  stage       Stage
-  classes     SchoolClass[]
-  principals  User[]
-  teachers    Teacher[]
-  submissions Submission[]
-  createdAt   DateTime      @default(now())
+  id               Int           @id @default(autoincrement())
+  name             String        @unique
+  code             String        @unique
+  registrationCode String
+  stage            Stage
+  classes          SchoolClass[]
+  principals       User[]
+  teachers         Teacher[]
+  submissions      Submission[]
+  createdAt        DateTime      @default(now())
 }
 
 model SchoolClass {

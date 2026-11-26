@@ -1,6 +1,7 @@
 import 'dotenv/config'
 import { Prisma, PrismaClient } from '@prisma/client'
 import bcrypt from 'bcryptjs'
+import { newRegistrationCode } from '../lib/registration-code'
 import { makeClasses, stageGrades } from '../lib/classes'
 
 const db = new PrismaClient()
@@ -37,10 +38,12 @@ async function seed() {
       subjects.push(await tx.subject.create({ data: { name, order: i + 1 } }))
     }
     for (const [index, stage] of (['PRIMARY', 'MIDDLE'] as const).entries()) {
+      const counts = stage === 'PRIMARY' ? [4, 4, 3, 3, 3, 3] : [2, 2, 2]
+      const grades = stageGrades[stage].map((name, i) => ({ name, classCount: counts[i] }))
       const school = await tx.school.create({
         data: {
           name: ['晨光小学', '明德初中'][index], code: ['CGXX', 'MDCZ'][index], stage,
-          classes: { create: makeClasses(stageGrades[stage], index === 0 ? 3 : 2) },
+          registrationCode: newRegistrationCode(), classes: { create: makeClasses(grades) },
           principals: { create: { username: `principal${index + 1}`, role: 'PRINCIPAL', password: hash } },
         },
         include: { classes: { orderBy: [{ gradeOrder: 'asc' }, { order: 'asc' }] } },
@@ -76,6 +79,8 @@ async function seed() {
   }, { timeout: 30000 })
   console.log(`管理员 admin；校长 principal1、principal2。演示密码 ${password}`)
   console.log(`学生问卷 http://localhost:3000/survey/${period.id}`)
+  const schools = await db.school.findMany({ select: { name: true, registrationCode: true }, orderBy: { id: 'asc' } })
+  for (const school of schools) console.log(`${school.name}登记口令：${school.registrationCode}`)
 }
 
 seed().catch(error => { console.error(error); process.exitCode = 1 }).finally(() => db.$disconnect())
